@@ -1,0 +1,44 @@
+[project]
+name = "uniparser-tools"
+dynamic = ["version", "dependencies"]
+description = "Document parser tools based on UniParser"
+readme = "README.md"
+requires-python = ">=3.8"
+keywords = ["ocr", "document-parser", "uniparser"]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ['.']
+exclude = ['build', 'workspace', 'temp', 'temp.*', 'models', 'models.*', 'tests', 'tests.*']
+
+[tool.setuptools.dynamic]
+version = { attr = "uniparser_tools.__version__" }
+dependencies = { file = ["requirements.txt"] }
+
+[tool.ruff]
+target-version = "py310"
+line-length = 120
+indent-width = 4
+extend-exclude = []
+
+[tool.ruff.lint]
+ignore = ["C408", "C901", "E501", "E731", "E741", "W605", "W293", "W291"]
+select = ["C", "E", "F", "I", "W"]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["E402", "F401", "F403", "F811"]
+
+[tool.ruff.lint.isort]
+lines-after-imports = 2
+known-first-party = []
+known-third-party = []
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+docstring-code-format = true
+skip-magic-trailing-comma = false
+line-ending = "auto"

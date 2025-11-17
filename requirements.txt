@@ -1,0 +1,17 @@
+PyMuPDF
+pytz
+html5lib
+markdown
+latex2mathml
+pylatexenc
+tabulate
+pandas
+pillow
+requests
+scipy
+numpy
+lxml
+opencv-python
+opencv-python-headless
+opencv-contrib-python
+opencv-contrib-python-headless

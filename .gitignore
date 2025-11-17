@@ -1,0 +1,72 @@
+# base ignore
+.DS_Store
+.idea
+*.idea
+*.vscode
+*.txt
+*.__pycache__
+
+# compilation and distribution
+__pycache__
+*.egg
+*.egg-info
+_ext
+*.pyc
+*.so
+build/
+dist/
+wheels/
+cocoapi*
+panopticapi*
+
+# pytorch/python/numpy formats
+*.pth
+*.pkl
+*.npy
+*.zip
+*.tar
+
+# ipython/jupyter notebooks
+*.ipynb
+**/.ipynb_checkpoints/
+
+# editor temporaries
+*.swn
+*.swo
+*.swp
+*~
+
+# build Docs
+*.html
+*.css
+*.js
+*.doctree
+*.pickle
+
+# output
+.cache
+exp
+outputs
+workspace
+workspace*
+clients
+services/result*
+debug
+data
+examples
+samples
+tests
+temp
+models
+deploy
+*.jpg
+*.png
+*.bmp
+*.pdf
+*.json
+
+# env
+.env
+
+*.bak
+.cursor/
