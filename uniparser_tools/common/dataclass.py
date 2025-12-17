@@ -560,6 +560,9 @@ class Item(DataClassGeneric):
         # palin text
         return ""
 
+    def format_as(self, format_flag: FormatFlag):
+        return item2format_(self, format_flag)
+
     @classmethod
     def clone(cls, item, **extra):
         assert is_dataclass(item)
@@ -628,9 +631,6 @@ class SemanticItem(Item):
     def html(self):
         # for html formater
         return self.plain
-
-    def format_as(self, format_flag: FormatFlag):
-        return item2format_(self, format_flag)
 
 
 @dataclass
