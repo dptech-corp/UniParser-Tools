@@ -174,8 +174,8 @@ class ProcessBar(DataClassGeneric):
 class ServerConfig(DataClassGeneric):
     root: str
     parse_path: str
-    version_path: str
-    health_path: str
+    version_path: str = "/version"
+    health_path: str = "/health"
 
     @property
     def parse_url(self) -> str:
@@ -202,10 +202,14 @@ class Point(DataClassGeneric):
             return abs(self.x - other.x) + abs(self.y - other.y)
         raise NotImplementedError
 
-    def __add__(self, other: Point) -> Point:
+    def __add__(self, other: Union[Point, Tuple[float, float]]) -> Point:
+        if isinstance(other, (tuple, list)):
+            return Point(self.x + other[0], self.y + other[1])
         return Point(self.x + other.x, self.y + other.y)
 
-    def __sub__(self, other: Point) -> Point:
+    def __sub__(self, other: Union[Point, Tuple[float, float]]) -> Point:
+        if isinstance(other, (tuple, list)):
+            return Point(self.x - other[0], self.y - other[1])
         return Point(self.x - other.x, self.y - other.y)
 
     def __mul__(self, other: Union[float, Tuple[float, float]]) -> Point:
@@ -551,6 +555,24 @@ class Item(DataClassGeneric):
             self.direction = Direction(self.direction)
 
     @property
+    def r_bbox(self):
+        # return relative bbox, 0-1
+        eps = 1 / min(self.page_size)
+        if 0 <= self.bbox.x2 <= 1 + eps and 0 <= self.bbox.y2 <= 1 + eps:
+            return self.bbox
+        else:
+            return self.bbox / self.page_size
+
+    @property
+    def p_bbox(self):
+        # return absolute bbox, pixel
+        eps = 1 / min(self.page_size)
+        if 0 <= self.bbox.x2 <= 1 + eps and 0 <= self.bbox.y2 <= 1 + eps:
+            return self.bbox * self.page_size
+        else:
+            return self.bbox
+
+    @property
     def empty(self):
         # disable output
         return ""
@@ -569,6 +591,8 @@ class Item(DataClassGeneric):
         # skip key not in cls fields
         kwargs = {f.name: getattr(item, f.name) for f in fields(cls) if f.name in item.__dict__}
         kwargs.update({f.name: extra.get(f.name) for f in fields(cls) if f.name in extra})
+        # clear source
+        kwargs.pop("source", None)
         return cls(**kwargs)
 
     def transpose(self):
@@ -682,7 +706,9 @@ class TextualResult(SemanticItem):
     @property
     def latex(self):
         try:
-            plain = unicode_to_latex(self.plain)
+            # 对于无法映射到 LaTeX 的字符（例如中文“物”），使用 unknown_char_policy=\"keep\"
+            # 以保留原始字符并避免 pylatexenc 打印告警。
+            plain = unicode_to_latex(self.plain, unknown_char_policy="keep", unknown_char_warning=False)
         except Exception:
             get_root_logger().exception(f"unicode_to_latex failed: {self.plain}")
             plain = self.plain
@@ -866,7 +892,7 @@ class ExpressionResult(SemanticItem):
 
     @property
     def latex(self):
-        return self.df.to_latex(index=False, escape=True)
+        return self.df.style.hide(axis="index").format(escape="latex").to_latex()
 
     @property
     def html(self):
@@ -927,7 +953,7 @@ class TabularResult(SemanticItem):
 
     @property
     def latex(self):
-        return self.df.to_latex(index=False, escape=True)
+        return self.df.style.hide(axis="index").format(escape="latex").to_latex()
 
     @property
     def html(self):
@@ -973,7 +999,7 @@ class ChartResult(SemanticItem):
 
     @property
     def latex(self):
-        return self.df.to_latex(index=False, escape=True)
+        return self.df.style.hide(axis="index").format(escape="latex").to_latex()
 
     @property
     def html(self):

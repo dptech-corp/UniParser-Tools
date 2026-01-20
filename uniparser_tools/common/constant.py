@@ -313,6 +313,10 @@ class ErrorFlag(StrEnum):
     Lang_Not_Supported = "Lang is not supported"   # 语言不支持OCR
     Pages_Required = "Page list is required"       # 未选择解析页
     Process_Failed = "Process failed"              # 解析失败
+    File_Size_Exceeded = "File size exceeds limit" # 文件大小超过限制
+    PDF_Pages_Exceeded = "PDF page count exceeds limit" # PDF页数超过限制
+    File_Type_Not_Allowed = "File type not allowed" # 文件类型不允许
+    Domain_Not_Allowed = "Domain not allowed"      # 域名不允许
 
 
 class LayoutType(StrEnum):
@@ -345,7 +349,9 @@ class LayoutType(StrEnum):
     DocumentTitle = "documenttitle"   # 文档标题
     KeyValue = "keyvalue"             # 键值对 / 字段代码（专利）
     Reference = "reference"           # 参考文献
-    Code = "code"                     # 代码
+    Algorithm = "algorithm"           # 算法
+    AlgorithmCaption = "algorithmcaption" # 算法标题
+    AlgorithmFootnote = "algorithmfootnote" # 算法脚注
     TOC = "toc"                       # 目录
     Image = "image"                   # 图像
     ImageCaption = "imagecaption"     # 图像标题
@@ -365,9 +371,11 @@ class LayoutType(StrEnum):
     HLine = "hline"                    # 水平分割线
     Group = "group"                    # 组合
     Abandon = "abandon"                # 丢弃
+    TextLine = "textline"              # 文本行
     Tabular = "tabular"                # 表单/列表型文本，需Tab信息
     List = "list"                      # 列表，包括有序/无序
     EquationInline = "equationinline"  # 内联公式
+    Abstract = "abstract"              # 摘要
 
     # SYN model
     Identifier = "identifier"     # 分子标记的序号
@@ -399,7 +407,9 @@ class LayoutTypeBot(StrEnum):
     ImageFootnote = LayoutType.ImageFootnote
     Equation = LayoutType.Equation
     EquationID = LayoutType.EquationID
-    Code = LayoutType.Code
+    Algorithm = LayoutType.Algorithm
+    AlgorithmCaption = LayoutType.AlgorithmCaption
+    AlgorithmFootnote = LayoutType.AlgorithmFootnote
     TOC = LayoutType.TOC
     Group = LayoutType.Group
     HLine = LayoutType.HLine
@@ -453,10 +463,10 @@ TextualTypes = [
     LayoutType.Identifier,
     LayoutType.EquationID,
     LayoutType.MoleculeID,
-    LayoutType.Code,
+    LayoutType.Algorithm,
+    LayoutType.AlgorithmCaption,
+    LayoutType.AlgorithmFootnote,
     LayoutType.TOC,
-    LayoutType.PageHeader,
-    LayoutType.PageFooter,
     LayoutType.PageNumber,
     LayoutType.PageBar,
     LayoutType.PageNote,
@@ -468,6 +478,8 @@ TextualTypes = [
     LayoutType.TableFootnote,
     LayoutType.FigureCaption,
     LayoutType.ExpressionCaption,
+    LayoutType.TextLine,
+    LayoutType.Abstract,
 ]
 
 EntityTypes = [
@@ -487,10 +499,13 @@ GroupedTypes = [
 IgnoreTypes = [
     LayoutType.Abandon,
     LayoutType.Watermark,
+    LayoutType.PageHeader,
+    LayoutType.PageFooter,
 ]
 
 FunctionalTypes = [
     LayoutType.Section,
+    LayoutType.Page,
     LayoutType.HLine,
     LayoutType.Group,
     LayoutType.TableGroup,
