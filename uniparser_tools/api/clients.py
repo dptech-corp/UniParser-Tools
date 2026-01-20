@@ -1,4 +1,5 @@
 import json
+import re
 import traceback
 import uuid
 from dataclasses import asdict, dataclass
@@ -84,13 +85,15 @@ class GetFormattedData:
     figure: FormatFlag
     expression: FormatFlag
     equation: FormatFlag
+    marginalia: bool
 
 
 class UniParserClient:
-    def __init__(self, user: str, host: str):
-        assert user, "user name can not be empty"
-        assert host.startswith("http"), "host must start with http"
-        self.user = uuid.uuid5(uuid.NAMESPACE_DNS, user)
+    def __init__(self, host: str, api_key: str):
+        assert api_key, "api_key can not be empty"
+        assert host.startswith("http"), "host must start with http or https"
+        self.api_key = api_key
+        self.user = uuid.uuid5(uuid.NAMESPACE_DNS, self.api_key)
         self.host = host
 
     @property
@@ -115,8 +118,10 @@ class UniParserClient:
 
     def to_token(self, task_id: str):
         token = uuid.uuid5(self.user, task_id).hex
-        # assert re.match(r"^[-\._?=&a-zA-Z0-9]{1,128}$", token), f"token: {token} contains illegal characters"
         return token
+
+    def validate_token(self, token: str):
+        assert re.match(r"^[-\._?=&a-zA-Z0-9]{1,128}$", token), f"token: {token} contains illegal characters"
 
     def trigger_file(
         self,
@@ -140,6 +145,7 @@ class UniParserClient:
         """
         if not token:
             token = self.to_token(file_path)
+        self.validate_token(token)
         trigger_data = TriggerFileData(
             token=token,
             lang=lang,
@@ -157,9 +163,10 @@ class UniParserClient:
         )
 
         try:
+            headers = {"X-API-Key": self.api_key}
             files = {"file": open(file_path, "rb")}
             data = asdict(trigger_data, dict_factory=int_enum_factory)
-            response = requests.post(self.trigger_file_endpoint, files=files, data=data)
+            response = requests.post(self.trigger_file_endpoint, files=files, data=data, headers=headers)
         except Exception:
             return {
                 "status": StatusFlag.Error,
@@ -192,6 +199,7 @@ class UniParserClient:
     ):
         if not token:
             token = self.to_token(snip_path)
+        self.validate_token(token)
         trigger_data = TriggerFileData(
             token=token,
             lang=lang,
@@ -209,9 +217,10 @@ class UniParserClient:
         )
 
         try:
+            headers = {"X-API-Key": self.api_key}
             img = dump_image_base64_str(Image.open(snip_path).convert("RGB"))
             data = {"img": img, **asdict(trigger_data, dict_factory=int_enum_factory)}
-            result = requests.post(self.trigger_snip_endpoint, data=data)
+            result = requests.post(self.trigger_snip_endpoint, data=data, headers=headers)
         except Exception:
             return {
                 "status": StatusFlag.Error,
@@ -244,6 +253,7 @@ class UniParserClient:
     ):
         if not token:
             token = self.to_token(pdf_url)
+        self.validate_token(token)
         trigger_data = TriggerURLData(
             url=pdf_url,
             token=token,
@@ -262,7 +272,9 @@ class UniParserClient:
             proxy=proxy,
         )
         try:
-            result = requests.post(self.trigger_url_endpoint, json=asdict(trigger_data, dict_factory=int_enum_factory))
+            headers = {"X-API-Key": self.api_key}
+            data = asdict(trigger_data, dict_factory=int_enum_factory)
+            result = requests.post(self.trigger_url_endpoint, json=data, headers=headers)
         except Exception:
             return {
                 "status": StatusFlag.Error,
@@ -293,7 +305,9 @@ class UniParserClient:
             molecule_source=molecule_source,
         )
         try:
-            result = requests.post(self.get_result_endpoint, json=asdict(data, dict_factory=int_enum_factory))
+            headers = {"X-API-Key": self.api_key}
+            data = asdict(data, dict_factory=int_enum_factory)
+            result = requests.post(self.get_result_endpoint, json=data, headers=headers)
         except Exception:
             return {
                 "status": StatusFlag.Error,
@@ -321,6 +335,7 @@ class UniParserClient:
         figure: FormatFlag = FormatFlag.Markdown,
         expression: FormatFlag = FormatFlag.Markdown,
         equation: FormatFlag = FormatFlag.Markdown,
+        marginalia: bool = False,
     ):
         data = GetFormattedData(
             token=token,
@@ -336,9 +351,12 @@ class UniParserClient:
             figure=figure,
             expression=expression,
             equation=equation,
+            marginalia=marginalia,
         )
         try:
-            result = requests.post(self.get_formatted_endpoint, json=asdict(data, dict_factory=int_enum_factory))
+            headers = {"X-API-Key": self.api_key}
+            data = asdict(data, dict_factory=int_enum_factory)
+            result = requests.post(self.get_formatted_endpoint, json=data, headers=headers)
         except Exception:
             return {
                 "status": StatusFlag.Error,
