@@ -763,10 +763,26 @@ def main(token: str, pdf_path: str, json_path: str, save_dir: str = None, dpi=30
                     continue
 
                 if len(image_main) > 1:
-                    get_root_logger().warning(
-                        f"{token} Skip multi-image group: {group_name} with {len(image_main)} images"
-                    )
-                    continue
+                    overlap = False
+                    union_image_bbox = image_main[0].bbox
+                    for image in image_main[1:]:
+                        if union_image_bbox.iou(image.bbox) != 0:
+                            overlap = True
+                            break
+                        union_image_bbox = union_image_bbox.union(image.bbox)
+                    image_main = [
+                        GroupedResult.clone(
+                            group,
+                            items=image_main,
+                            bbox=union_image_bbox,
+                            type=LayoutType.Image,
+                        )
+                    ]
+                    if overlap:
+                        get_root_logger().warning(
+                            f"{token} Skip overlapped multi-image group: {group_name} with {len(image_main)} images: \n{tree_repr(GroupedResult.clone(group, items=image_main), verbose=True)}"
+                        )
+                        continue
 
                 get_root_logger().debug(f"Processing Group {group_name}")
                 union_desc_bbox = image_desc[0].bbox

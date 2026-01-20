@@ -251,6 +251,12 @@ def find_figure_caption_kws(captions: Union[str, List[str]]) -> List[str]:
         kws.extend(matches)
         matches = re.findall(r"(sche(?:me)?[\.\-\s]*[S]?[\d]+)", cap, flags=re.I)
         kws.extend(matches)
+        # tables
+        matches = re.findall(r"(table[\.\-\s]*[S]?[\d]+)", cap, flags=re.I)
+        kws.extend(matches)
+        # charts
+        matches = re.findall(r"(chart[\.\-\s]*[S]?[\d]+)", cap, flags=re.I)
+        kws.extend(matches)
     unique_kws = []
     for kw in kws:  # keep in order
         kw = re.sub(r"(\s)S(\d+)", r"\1$\2", kw)  # 替换 "S1" 为 "$1"
@@ -514,7 +520,7 @@ def get_image_size(file_path):
         return width, height
 
 
-def tree_repr(item: GroupedResult, output_str: StringIO = None, prefix: str = "") -> str:
+def tree_repr(item: GroupedResult, output_str: StringIO = None, prefix: str = "", verbose: bool = False) -> str:
     # ├─ │ └─ 绘制树，树名为其type，子节点为items
     # group
     # ├── image
@@ -534,7 +540,7 @@ def tree_repr(item: GroupedResult, output_str: StringIO = None, prefix: str = ""
     if output_str is None:
         output_str = StringIO()
     if not prefix:
-        output_str.write(f"{prefix}{item.type}\n")
+        output_str.write(f"{prefix}{item.type}{item.p_bbox if verbose else ''}\n")
     if isinstance(item, GroupedResult) and item.items:
         last_idx = len(item.items) - 1
         for idx, child in enumerate(item.items):
@@ -545,10 +551,10 @@ def tree_repr(item: GroupedResult, output_str: StringIO = None, prefix: str = ""
                 branch = "├─ "
                 next_prefix = prefix + "│  "
             if isinstance(child, GroupedResult) and child.items:
-                output_str.write(f"{prefix}{branch}{child.type}\n")
-                tree_repr(child, output_str=output_str, prefix=next_prefix)
+                output_str.write(f"{prefix}{branch}{child.type}{child.p_bbox if verbose else ''}\n")
+                tree_repr(child, output_str=output_str, prefix=next_prefix, verbose=verbose)
             else:
-                output_str.write(f"{prefix}{branch}{child.type}\n")
+                output_str.write(f"{prefix}{branch}{child.type}{child.p_bbox if verbose else ''}\n")
     return output_str.getvalue()
 
 
