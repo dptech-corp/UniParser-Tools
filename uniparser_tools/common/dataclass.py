@@ -931,12 +931,9 @@ class TabularResult(SemanticItem):
             df = read_html(StringIO(html))[0]
             df = df.dropna(how="all")  # drop empty 'NaN' rows
             df = df[df.astype(bool).sum(axis=1) > 0]  # remove empty 'blacksapce' rows
-        except Exception as e:
-            if isinstance(e, ValueError) and "No tables found matching pattern" in str(e):
-                # not a table
-                df = pd.DataFrame([""], columns=[""])
-            else:
-                raise e
+        except Exception:
+            get_root_logger().exception("read_html error")
+            df = pd.DataFrame([""], columns=[""])
         return df
 
     @property
