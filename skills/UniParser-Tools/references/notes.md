@@ -57,3 +57,5 @@ All API methods return a dict with consistent structure:
 | `token: ... contains illegal characters` | Invalid token format | Token must match `^[-\._?=&a-zA-Z0-9]{1,128}$` |
 | `api_key can not be empty` | Missing API key | Set `UNIPARSER_API_KEY` environment variable |
 | `host must start with http or https` | Invalid host URL | Use full URL including protocol |
+| `Token is duplicated` | Job already submitted for this API key + input | Use `fetch_by_token.py`; do not re-run `parse_document.py` (see SKILL.md **Common errors and recovery**) |
+| `502 Bad Gateway` on `--pdf-url` | Server failed fetching/processing remote PDF | Retry URL, or fallback to `--file-path` if user allows (see SKILL.md **URL 502 fallback**) |
