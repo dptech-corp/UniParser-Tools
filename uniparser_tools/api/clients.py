@@ -118,6 +118,14 @@ class UniParserClient:
     def get_formatted_endpoint(self):
         return f"{self.host}/get-formatted"
 
+    @property
+    def me_endpoint(self):
+        return f"{self.host.rstrip('/')}/users/me"
+
+    @property
+    def api_keys_endpoint(self):
+        return f"{self.host.rstrip('/')}/api-keys"
+
     def to_token(self, task_id: str):
         token = uuid.uuid5(self.user, task_id).hex
         return token
@@ -125,47 +133,51 @@ class UniParserClient:
     def validate_token(self, token: str):
         assert re.match(r"^[-\._?=&a-zA-Z0-9]{1,128}$", token), f"token: {token} contains illegal characters"
 
-    def health(self):
+    def _get_json(self, url: str):
+        """GET ``url`` with the API key header; return parsed JSON or an error dict.
+
+        Never raises for transport / HTTP / decode failures — callers get a
+        structured ``{"status": "error", ...}`` so they don't need try/except
+        per call. On HTTP errors the JSON body (e.g. FastAPI ``{"detail": ...}``)
+        is preserved when present so UI code can surface the server reason.
+        """
         try:
             headers = {"X-API-Key": self.api_key}
-            response = requests.get(f"{self.host}/health", headers=headers, timeout=30)
+            response = requests.get(url, headers=headers, timeout=30)
         except Exception:
             return {
                 "status": StatusFlag.Error,
                 "description": traceback.format_exc(),
             }
         if response.status_code >= 400:
+            try:
+                body = response.json()
+            except Exception:
+                body = response.text
             return {
                 "status": "error",
                 "http_status": response.status_code,
-                "description": response.reason_phrase,
-                "body": response.text,
+                "description": getattr(response, "reason", None) or getattr(response, "reason_phrase", "") or "",
+                "body": body,
             }
         try:
             return response.json()
         except json.decoder.JSONDecodeError:
             return {"status": StatusFlag.Error, "message": response.text}
 
+    def health(self):
+        return self._get_json(f"{self.host}/health")
+
     def version(self):
-        try:
-            headers = {"X-API-Key": self.api_key}
-            response = requests.get(f"{self.host}/version", headers=headers, timeout=30)
-        except Exception:
-            return {
-                "status": StatusFlag.Error,
-                "description": traceback.format_exc(),
-            }
-        if response.status_code >= 400:
-            return {
-                "status": "error",
-                "http_status": response.status_code,
-                "description": response.reason_phrase,
-                "body": response.text,
-            }
-        try:
-            return response.json()
-        except json.decoder.JSONDecodeError:
-            return {"status": StatusFlag.Error, "message": response.text}
+        return self._get_json(f"{self.host}/version")
+
+    def me(self):
+        """Return the authenticated user record from ``GET /users/me``."""
+        return self._get_json(self.me_endpoint)
+
+    def list_api_keys(self):
+        """List the caller's API keys from ``GET /api-keys`` (no raw secrets)."""
+        return self._get_json(self.api_keys_endpoint)
 
     def trigger_file(
         self,
