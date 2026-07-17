@@ -6,6 +6,9 @@ readme = "README.md"
 requires-python = ">=3.8"
 keywords = ["ocr", "document-parser", "uniparser"]
 
+[project.scripts]
+uniparser = "uniparser_tools.cli.main:cli"
+
 [build-system]
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
@@ -33,7 +36,7 @@ select = ["C", "E", "F", "I", "W"]
 
 [tool.ruff.lint.isort]
 lines-after-imports = 2
-known-first-party = []
+known-first-party = ["uniparser_tools"]
 known-third-party = []
 
 [tool.ruff.format]

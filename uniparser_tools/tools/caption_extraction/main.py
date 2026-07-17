@@ -8,8 +8,6 @@ from enum import Enum
 from pathlib import Path
 from typing import Dict, List, Union
 
-import fitz  # PyMuPDF
-from fitz.utils import get_pixmap
 from PIL import Image
 
 from uniparser_tools.common.constant import LayoutType, LayoutTypeBot, LayoutTypeTop, OrderingMethod
@@ -24,8 +22,10 @@ from uniparser_tools.common.dataclass import (
     TextualResult,
 )
 from uniparser_tools.order.structure_order import StructureOrder, count_items, set_item_order
+from uniparser_tools.utils import pdf_render as fitz  # PDFium-backed, permissive license (was PyMuPDF)
 from uniparser_tools.utils.convert import dict2obj
 from uniparser_tools.utils.log import get_root_logger
+from uniparser_tools.utils.pdf_render import get_pixmap
 from uniparser_tools.utils.processor import (
     clean_scientific_text,
     find_figure_caption_kws,

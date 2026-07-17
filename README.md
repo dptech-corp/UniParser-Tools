@@ -44,14 +44,51 @@ UniParser Tools 是一个强大的文档解析工具包，支持对 PDF 文件�
 
 ## 安装
 
+安装 Python 依赖：
+
 ```bash
 pip install -r requirements.txt
 ```
 
-或者安装为可编辑包：
+使用 **`uniparser` 命令行工具**时，还需将本仓库安装为可编辑包（入口在 `pyproject.toml` 中注册）：
 
 ```bash
 pip install -e .
+```
+
+> **说明：** 仅执行 `pip install -r requirements.txt` **不会**注册 `uniparser` 命令；SDK 开发用前者即可，CLI 必须执行 `pip install -e .`。
+
+安装后验证：
+
+```bash
+uniparser --help
+```
+
+CLI 完整说明见 [`uniparser_tools/cli/README.md`](./uniparser_tools/cli/README.md)。
+
+## CLI 命令行
+
+`uniparser` 提供 `auth`、`parse`、`fetch`、`health`、`version` 等子命令。
+
+| 命令 | 说明 |
+|------|------|
+| `uniparser auth` | 交互式配置 API Key（写入 `~/.uniparser/config.yaml`） |
+| `uniparser parse INPUT` | 解析本地 PDF/图片或公网 PDF URL |
+| `uniparser fetch --token TOKEN` | 用已有 token 轮询并下载结果 |
+| `uniparser health` | 检查服务健康状态（需要 API Key） |
+| `uniparser version` | 查看本地包版本（无 API Key 时跳过远端查询） |
+
+**API Key 优先级：** `--api-key` > `UNIPARSER_API_KEY` > `~/.uniparser/config.yaml`
+
+**`--json` 须写在子命令之前：** `uniparser --json parse paper.pdf`
+
+参数、输出文件、错误码等详见 [`uniparser_tools/cli/README.md`](./uniparser_tools/cli/README.md)。
+
+首次使用：
+
+```bash
+uniparser auth
+uniparser parse report.pdf
 ```
 
 ## API-Key 配置
@@ -59,7 +96,7 @@ pip install -e .
 所有请求都通过 `X-API-Key` 请求头认证，`UniParserClient` 会自动注入。
 
 - **获取方式**：在 UniParser 服务首页（如 `https://uniparser.dp.tech/`）注册访客账号，或向运维/业务方申请长期 API-Key。
-- **推荐存储**：使用环境变量 `UNIPARSER_API_KEY`，避免在代码中硬编码。
+- **推荐存储**：运行 `uniparser auth`，或设置环境变量 `UNIPARSER_API_KEY`，避免在代码中硬编码。
 - **错误处理**：Key 缺失/过期、限流等情况都会被客户端统一包装成 `{"status": "error", ...}` 返回，详见下方 [错误处理](#错误处理)。
 
 ```python
@@ -75,7 +112,7 @@ parser = UniParserClient(
 提交解析任务时（`trigger_file` / `trigger_snip` / `trigger_url`），可分别设置 7 类语义元素的处理模式：
 
 | 字段 | 含义 | 枚举类型 |
-|------|------|---------|
+|------|------|------|
 | `textual` | 普通文本（段落、标题等） | `ParseModeTextual` |
 | `equation` | 数学公式 | `ParseMode` |
 | `table` | 表格 | `ParseMode` |
@@ -90,19 +127,19 @@ parser = UniParserClient(
 |------|------|------|
 | `-3` / `-2` | `DumpHosting` / `DumpLocal` | 保留接口，默认关闭 |
 | `-1` | `DumpBase64` | 禁用解析，输出原始图像 Base64 |
-| `0`  | `Disable`   | 禁用解析，不输出 |
-| `1`  | `OCRFast`   | 快速 OCR（默认） |
-| `2`  | `OCRHighQuality` | 高质 OCR |
+| `0` | `Disable` | 禁用解析，不输出 |
+| `1` | `OCRFast` | 快速 OCR（默认） |
+| `2` | `OCRHighQuality` | 高质 OCR |
 
 ### `ParseModeTextual`（仅用于 `textual`）
 
 | 取值 | 名称 | 含义 |
 |------|------|------|
 | `-1` | `DumpBase64` | 输出原始图像 Base64 |
-| `0`  | `Disable`   | 不解析、不输出 |
-| `1`  | `OCRFast`   | 快速 OCR |
-| `2`  | `OCRHighQuality` | 高质 OCR，支持行内公式 |
-| `3`  | `DigitalExported` | 从数字原生 PDF 直接抽取文字 |
+| `0` | `Disable` | 不解析、不输出 |
+| `1` | `OCRFast` | 快速 OCR |
+| `2` | `OCRHighQuality` | 高质 OCR，支持行内公式 |
+| `3` | `DigitalExported` | 从数字原生 PDF 直接抽取文字 |
 
 ## 快速开始
 
@@ -164,7 +201,7 @@ if result["status"] == "success":
 #### 输出格式（`FormatFlag`，仅作用于 `content` / `objects` 中的文本字段）
 
 | 取值 | 适用场景 |
-|------|----------|
+|------|------|
 | `FormatFlag.Plain` | 纯文本，适合检索 |
 | `FormatFlag.Markup` | 默认标记文本 |
 | `FormatFlag.Markdown` | ⭐ 推荐给 LLM |
@@ -335,7 +372,7 @@ token = result["token"]
 返回体字段约定：
 
 | 字段 | 出现场景 | 说明 |
-|------|----------|------|
+|------|------|------|
 | `status` | 始终存在 | `"success"` / `"error"`（见 `StatusFlag`） |
 | `token` | 触发/查询类接口 | 本次任务的 token，出错也会带上以便追溯 |
 | `description` | 错误时 | 业务层错误原因，通常取自 `ErrorFlag`（如 `Token_Invalid`、`File_Size_Exceeded`、`Domain_Not_Allowed`…）或本地 traceback |
@@ -345,23 +382,29 @@ token = result["token"]
 
 ## 面向 AI Agent
 
-本仓库提供 **Agent Skill**（`skills/UniParser-Tools/`），让 Cursor、Claude Code 等助手在对话中自动完成 PDF / 图片 / 支持的文件 URL → 结构化 Markdown 与版面 JSON 的解析。用户只需安装 Skill、配置 API Key，并用自然语言或下方触发词发起任务；具体执行步骤由 Skill 内的 `SKILL.md` 指导 Agent，无需手动敲命令。
+本仓库提供 **Agent Skill**（[skills/UniParser-Tools/](./skills/UniParser-Tools/)），让 Cursor、Claude Code 等助手自动完成 PDF / 图片 / 公网 PDF 链接 → Markdown 与版面 JSON 的解析。用户只需要安装 Skill、准备 API Key，然后在对话里提出解析需求；CLI 安装与具体执行步骤由 Agent 按 [SKILL.md](./skills/UniParser-Tools/SKILL.md) 自动完成。
 
 ### 快速使用 Skill
 
-**1. 为 Agent 安装 Skill**
+**1. 安装 Skill**
 
-将本仓库中的 `skills/UniParser-Tools/` 整个目录发送给 Agent，并让 Agent 安装该 Skill。
+使用 `skills` 命令安装：
 
-安装后重启 Agent，确保 Skill 列表中出现 **uniparser-tools**。
+```bash
+npx skills add dptech-corp/UniParser-Tools
+```
 
-**2. 配置 API Key**
+也可以手动安装：将 [skills/UniParser-Tools/](./skills/UniParser-Tools/) 整个目录发送给 Agent，并让 Agent 安装该 Skill。安装后重启 Agent，确保 Skill 列表中出现 **uniparser-tools**。
 
-在 [https://uniparser.dp.tech/](https://uniparser.dp.tech/) 注册并申请 API Key，写入环境变量（Agent 终端需能读到）：
+**2. 准备 API Key**
+
+在 [https://uniparser.dp.tech/](https://uniparser.dp.tech/) 注册并申请 API Key。你可以让 Agent 按 Skill 指引配置，也可以提前设置环境变量：
 
 ```bash
 export UNIPARSER_API_KEY="your-api-key"
 ```
+
+不要把 API Key 直接粘贴到公开对话或代码仓库中。
 
 **3. 在 Agent 中使用 Skill**
 
@@ -372,41 +415,20 @@ export UNIPARSER_API_KEY="your-api-key"
 
 支持的输入：**本地 PDF**、**本地图片**（png / jpg 等）、**可公网访问的 PDF URL**。
 
-**4. 使用效果与结果位置**
+**4. 查看输出结果**
 
-解析成功后，Agent 会在回复中给出 **Markdown 文件路径**（以及需要时的 **版面结构文件路径**），并可将正文摘要或全文交付给你。典型效果包括：
-
-- 按阅读顺序输出的 **Markdown 全文**（`{源文件主名}.md`，如 `paper.pdf` → `paper.md`）
-- **表格** 转为 Markdown 表格
-- **公式** 转为 LaTeX
-- **图片 / 图表** 等以 base64 等形式出现在结果中（视文档类型而定）
-- **版面结构树** `pages_tree.json`，便于需要章节、块级布局时使用
-- 面向科技文献的默认识别策略（高质量 OCR 等，由 Skill 配置）
-
-默认将结果写入用户主目录下：
-
-`~/Uni-Parser-Skill/<源文件主名>/`
-
-例如解析 `paper.pdf` 时，默认目录为 `~/Uni-Parser-Skill/paper/`。该目录在**解析成功完成后**才会写入文件，通常包含：
+默认输出到 `~/Uni-Parser-Skill/<源文件主名>/`，通常包含：
 
 | 文件 | 说明 |
 |------|------|
 | `{源文件主名}.md` | 解析得到的完整 Markdown |
 | `pages_tree.json` | 结构化版面树（页面与语义块层次） |
 | `formatted_meta.json` | 元数据（不含全文 `content`） |
+| `trigger_meta.json` | 任务 token 与解析参数（供 `uniparser fetch` 中断恢复） |
 
-若你在对话中指定了输出目录，Agent 也可将结果保存到你提供的路径。若目标目录已存在，Agent 会先征求你是否覆盖后再继续。大文档解析可能耗时数分钟至十余分钟；重复提交同一文件时 Agent 会按 Skill 说明从已有任务恢复，而不会重复上传。
+Agent 会回复 Markdown 路径，并在需要版面结构时提供 `pages_tree.json`。大文档可能耗时数分钟至十余分钟；中断或重复任务可按 Skill 说明用 `trigger_meta.json` 中的 token 执行 `uniparser fetch`。
 
-Agent 实现细节、错误恢复与 SDK 安装说明见 `skills/UniParser-Tools/SKILL.md`。
-
-### 参考文档
-
-- `skills/UniParser-Tools/references/api-reference.md`
-- `skills/UniParser-Tools/references/patterns.md`
-- `skills/UniParser-Tools/references/data-classes.md`
-- `skills/UniParser-Tools/references/layout-types.md`
-- `skills/UniParser-Tools/references/utilities.md`
-- `skills/UniParser-Tools/references/notes.md`
+Agent 实现细节、CLI 命令与错误恢复见 [SKILL.md](./skills/UniParser-Tools/SKILL.md)。
 
 ## MCP Server
 
@@ -472,6 +494,9 @@ uv run python -m uniparser_mcp   # 启动 MCP 服务（stdio 模式）
 
 ```
 uniparser_tools/
+├── cli/              # uniparser 命令行工具
+│   ├── commands/     # auth, parse, fetch, health, version
+│   └── core/         # 配置、凭证、pipeline、输出
 ├── api/              # API 客户端
 ├── common/           # 通用常量和数据类
 ├── tools/            # 工具模块
@@ -496,6 +521,7 @@ playground/
 
 项目提供了丰富的示例和教程，位于 `playground/` 目录下：
 
+- **CLI 命令行**：[`uniparser_tools/cli/README.md`](./uniparser_tools/cli/README.md) - `uniparser` 安装、子命令与参数说明
 - **快速开始**：`playground/01.quick_start.ipynb` - 基础用法教程，包括 PDF 和图片解析、多种格式输出
 - **高级用法**：`playground/02.advance.ipynb` - 高级功能教程，包括图片+图题+图注、表格+表题+表注、分子+分子索引、公式+公式索引的提取
 - **异步回调**：`playground/04.use_callbacks.py` - 异步回调演示，用于在异步解析任务完成后自动接收通知和结果

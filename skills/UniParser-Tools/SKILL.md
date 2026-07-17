@@ -1,48 +1,65 @@
 ---
 name: uniparser-tools
-description: "Parse PDFs, document images, and supported source URLs into structured Markdown via UniParser (https://uniparser.dp.tech/)—tables, equations as LaTeX, figures, and reading order. Use when the user wants to parse or extract a document, paper, patent, report, or PDF/image/URL into Markdown. Trigger terms: UniParser, uniparser_tools, 文档解析, PDF解析, 论文解析, 专利解析, PDF转Markdown, 表格提取, 公式识别, 化学分子, scientific paper, layout extraction, dp.tech, document parsing."
+description: "Parse PDFs, document images, and public PDF URLs into structured Markdown via UniParser (https://uniparser.dp.tech/) — tables, equations as LaTeX, figures, and reading order. Use when the user wants to parse or extract a document, paper, patent, report, or PDF/image/URL into Markdown. Trigger terms: UniParser, uniparser_tools, 文档解析, PDF解析, 论文解析, 专利解析, PDF转Markdown, 表格提取, 公式识别, 化学分子, scientific paper, layout extraction, dp.tech, document parsing."
 ---
 
 # UniParser-Tools Skill
 
-Parse local PDFs, document images, and supported source URLs into Markdown and structured layout JSON via [UniParser](https://uniparser.dp.tech/). Agents run the bundled CLI scripts—do not hand-write SDK code for the default workflow.
+Parse local PDFs, document images, and public PDF URLs into Markdown and structured layout JSON via [UniParser](https://uniparser.dp.tech/). Agents use the installed `uniparser` CLI—do not hand-write SDK code for the default workflow.
 
 ## Installation
 
-**Do not use** `pip install uniparser-tools` — the package is not reliably published on PyPI.
-
-Install once into the **same Python environment** that runs the scripts below:
+Requires **Python 3.11+**. Install into the **same Python environment** that runs `uniparser`:
 
 ```bash
 pip install "git+https://github.com/dptech-corp/UniParser-Tools.git"
 ```
 
-`scripts/parse_document.py` and `scripts/fetch_by_token.py` check `import uniparser_tools` at startup; if missing, they exit with `CONFIG_ERROR` and the install command above (no automatic `pip install`).
+PyPI is not published yet; use the git install above (no automatic `pip install`—if missing, exit with this command).
 
-Manual verify:
+Verify:
 
 ```bash
-python3 -c "import uniparser_tools; print('ok')"
+uniparser --help
+uniparser version
 ```
+
+If `uniparser` is not found, the package is not installed in the active environment (no automatic `pip install`—exit with install guidance).
 
 ## Configuration
 
-**`UNIPARSER_API_KEY` is mandatory** (HTTP header `X-API-Key`). All requests use `https://uniparser.dp.tech/`.
+All requests use `https://uniparser.dp.tech/`. An API key is **mandatory** (HTTP header `X-API-Key`).
 
-Check before parsing:
+**Key sources** (highest priority first):
+
+1. `uniparser --api-key YOUR_KEY …` (one-off)
+2. Environment variable `UNIPARSER_API_KEY`
+3. `~/.uniparser/config.yaml` (written by `uniparser auth`)
+
+### Interactive setup (user machines)
+
+```bash
+uniparser auth
+```
+
+Apply for a key at [https://uniparser.dp.tech/](https://uniparser.dp.tech/) if needed. Prefer not pasting keys into chat.
+
+### Agent pre-check
+
+Before parsing, verify a key is configured:
+
+```bash
+uniparser auth --verify
+```
+
+- Exit code **0** → continue.
+- Exit code **1** → stop; guide the user to `uniparser auth` or set `UNIPARSER_API_KEY`, then restart the terminal or Cursor.
+
+Alternative (env only):
 
 ```bash
 python3 -c "import os, sys; sys.exit(0 if os.getenv('UNIPARSER_API_KEY') else 1)"
 ```
-
-- Exit code **0** → continue.
-- Exit code **1** → stop and guide the user to set the key (do not guess).
-
-If the key is missing:
-
-1. Apply at [https://uniparser.dp.tech/](https://uniparser.dp.tech/).
-2. Set the environment variable (see below).
-3. Restart the terminal or Cursor.
 
 **macOS / Linux:**
 
@@ -56,44 +73,43 @@ export UNIPARSER_API_KEY="your-api-key"
 $env:UNIPARSER_API_KEY="your-api-key"
 ```
 
-Prefer environment variables over pasting keys into chat.
-
 ## Usage
-
-> **Working directory**: Run commands from this skill's root directory (folder containing `SKILL.md`).
 
 ### CLI reference
 
-**Pipeline** (fixed in script): `submit → poll get_result until success → fetch pages_tree + Markdown → save`. Default `sync=true` (trigger blocks until server done; script still polls and fetches). `--async` uses `sync=false` on submit only.
+**Pipeline:** `submit → poll get_result until success → fetch pages_tree + Markdown → save`. Default `sync=true` (trigger blocks until server done; CLI still polls and fetches). `--async` uses `sync=false` on submit only.
 
-**Input → flag** (use **one** per run):
+**Input:** one positional `INPUT` per run—the CLI detects type by path suffix or `http(s)://` URL:
 
-- Local PDF → `--file-path`
-- Local image (.png, .jpg, …) → `--image-path`
-- Source URL (`http(s)`, `s3`, `oss`, `tos`, or `file`) → `--pdf-url`
+- Local PDF → `uniparser parse "/path/to/document.pdf"`
+- Local image (.png, .jpg, …) → `uniparser parse "/path/to/figure.png"`
+- Public PDF URL → `uniparser parse "https://example.com/paper.pdf"`
 
 ```bash
-python3 scripts/parse_document.py --file-path "/path/to/document.pdf"
-python3 scripts/parse_document.py --image-path "/path/to/figure.png"
-python3 scripts/parse_document.py --pdf-url "https://example.com/paper.pdf"
+uniparser parse "/path/to/document.pdf"
+uniparser parse "/path/to/figure.png"
+uniparser parse "https://example.com/paper.pdf"
 ```
 
 Optional flags:
 
 ```bash
-python3 scripts/parse_document.py --file-path "./paper.pdf" --output-dir "./results"
-python3 scripts/parse_document.py --file-path "./paper.pdf" --async
-python3 scripts/parse_document.py --file-path "./paper.pdf" --overwrite
+uniparser parse "./paper.pdf" -o "./results"
+uniparser parse "./paper.pdf" --async
+uniparser parse "./paper.pdf" --overwrite
 ```
 
 Recovery (existing server job—see **Common issues**):
 
 ```bash
-python3 scripts/fetch_by_token.py --file-path "/path/to/document.pdf"
-python3 scripts/fetch_by_token.py --pdf-url "https://example.com/paper.pdf"
+uniparser fetch --token "TASK_TOKEN_FROM_PRIOR_RUN"
 ```
 
-**Default output** (when `--output-dir` is omitted): `~/Uni-Parser-Skill/<source_stem>/`
+Token sources: stdout JSON from a prior `uniparser --json parse …`, `trigger_meta.json` under the output directory, or the `token` field in a failed parse stderr JSON.
+
+**Default output for** `fetch` (when `-o` / `--output-dir` is omitted): `~/Uni-Parser-Skill/token_<prefix>/`, where `<prefix>` is the first 8 characters of the token (e.g. `~/Uni-Parser-Skill/token_a1b2c3d4/token_a1b2c3d4.md`). To write into the same directory as a prior `parse`, pass `-o` explicitly (e.g. `-o ~/Uni-Parser-Skill/paper/`).
+
+**Default output for** `parse` (when `-o` / `--output-dir` is omitted): `~/Uni-Parser-Skill/<source_stem>/`
 
 `<source_stem>` = local file stem (`paper.pdf` → `paper`); for URLs, the last path segment with only `.pdf`/image suffix removed (`…/2606.05847` → `2606.05847`, not `2606`).
 
@@ -102,45 +118,105 @@ python3 scripts/fetch_by_token.py --pdf-url "https://example.com/paper.pdf"
 - `pages_tree.json` — structured layout tree
 - `{stem}.md` — full document Markdown
 - `formatted_meta.json` — metadata without full `content`
+- `trigger_meta.json` — task token and `trigger_kwargs` (for `uniparser fetch` recovery)
 
-**Deliver to user:** read stdout JSON (`markdown_path`, `pages_tree_path`, `output_dir`); open `{stem}.md` for full text; give the user the path and/or content. Mention `pages_tree.json` when layout structure matters.
+**Deliver to user:** open `{stem}.md` for full text; give the user the path and/or content. Mention `pages_tree.json` when layout structure matters. For reliable path extraction, prefer machine-readable output:
 
-**Parse options** (fixed in script):
+```bash
+uniparser --json parse "/path/to/document.pdf"
+```
 
-- `textual`, `equation`, `table`: OCRHighQuality
-- `chart`, `figure`, `expression`: DumpBase64
-- `molecule`: OCRFast
-- `sync=true` by default (`--async` for `sync=false`)
+Then read stdout JSON fields `markdown_path`, `pages_tree_path`, `output_dir`, and `token`.
+
+**Parse options** (CLI flags; defaults match scientific-paper preset):
+
+
+| Field               | Flag           | Default    |
+| ------------------- | -------------- | ---------- |
+| Text                | `--textual`    | `ocr-hq`   |
+| Equation            | `--equation`   | `ocr-hq`   |
+| Table               | `--table`      | `ocr-hq`   |
+| Chart               | `--chart`      | `base64`   |
+| Figure              | `--figure`     | `base64`   |
+| Chemical expression | `--expression` | `base64`   |
+| Molecule            | `--molecule`   | `ocr-fast` |
+
+
+Choices: `disable`, `ocr-fast`, `ocr-hq`, `digital` (textual only), `base64`. `sync=true` by default (`--async` for `sync=false`).
+
+Example:
+
+```bash
+uniparser parse paper.pdf --textual digital --molecule disable
+```
+
+## I/O contract
+
+
+| Outcome              | Exit code | stdout                          | stderr                                                        |
+| -------------------- | --------- | ------------------------------- | ------------------------------------------------------------- |
+| Success (human mode) | 0         | Human-readable paths            | Progress (`Parsing... filename`)                              |
+| Success (`--json`)   | 0         | Single JSON object (`ok: true`) | Progress (same as above)                                      |
+| Failure              | 1         | (empty or unused)               | Single JSON line (`ok: false`, `error.code`, `error.message`) |
+
+
+`--json` must appear **before** the subcommand:
+
+```bash
+uniparser --json parse paper.pdf    # correct
+uniparser parse paper.pdf --json    # wrong
+```
+
+`parse` **success JSON fields** (`uniparser --json parse INPUT`):
+
+
+| Field               | Meaning                                  |
+| ------------------- | ---------------------------------------- |
+| `ok`                | `true` on success                        |
+| `output_dir`        | Result directory (absolute path)         |
+| `markdown_path`     | Main Markdown file                       |
+| `pages_tree_path`   | Layout tree JSON                         |
+| `content_chars`     | Markdown body length                     |
+| `token`             | Task token for `uniparser fetch --token` |
+| `input_type`        | `file` / `image` / `url`                 |
+| `trigger_meta_path` | Path to `trigger_meta.json`              |
+
+
+**Common error codes** (stderr JSON): `CONFIG_ERROR`, `INPUT_ERROR`, `DIR_EXISTS`, `PARSE_ERROR`.
 
 ## Common issues
 
 On failure, show stderr JSON `error.message`. Do not substitute vision-only reading for UniParser output.
 
-| Problem | Cause | Solution |
-|---------|-------|----------|
-| `CONFIG_ERROR` | Missing `UNIPARSER_API_KEY` or `uniparser_tools` not installed | **Configuration** + `pip install "git+https://github.com/dptech-corp/UniParser-Tools.git"`; re-check key one-liner |
-| `DIR_EXISTS` | Output directory already exists | Ask user; re-run with `--overwrite` if they agree |
-| `Token is duplicated` | Job for this API key + exact input already exists | Do **not** re-run `parse_document.py`. `python3 scripts/fetch_by_token.py` with the **same** flag and path/URL (e.g. `--file-path "/abs/path/paper.pdf"`) |
-| Job not done / long wait / CLI interrupted / `processing` / poll timeout | Sync or poll still running; or local process stopped while server job continues | Wait; do **not** start a second `parse_document.py` for the same input. Re-run the same `fetch_by_token.py` command; files appear only after exit 0 |
-| `502 Bad Gateway` on `--pdf-url` | Server failed fetching or processing remote PDF | Retry `--pdf-url` once; or download and `--file-path`; or `fetch_by_token.py --pdf-url "exact same url"` if a prior job exists |
-| Wrong input flag | Images require `trigger_snip` | Use `--image-path`, not `--file-path` |
-| `PARSE_ERROR` | Server `status: error` at trigger / poll / fetch | Read `error.message` and `stage`; match rows above; check `trigger_error.json` / `pages_tree_error.json` / `formatted_error.json` under output dir if present |
 
-**Limits:** large PDFs may take 10–20+ minutes; public service ≤5 concurrent requests ([references/notes.md](./references/notes.md)); URL schemes and private object-store access depend on the target deployment. Recovery via `fetch_by_token.py` must use the **same** input string as the original parse—URL and file path are not interchangeable.
+| Problem                                                                  | Cause                                                                           | Solution                                                                                                                                                      |
+| ------------------------------------------------------------------------ | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `CONFIG_ERROR`                                                           | No API key or `uniparser` not installed                                         | **Configuration** + `pip install "git+https://github.com/dptech-corp/UniParser-Tools.git"`; `uniparser auth --verify`                                                                                  |
+| `DIR_EXISTS`                                                             | Output directory already exists                                                 | Ask user; re-run with `--overwrite` if they agree                                                                                                             |
+| `Token is duplicated`                                                    | Job for this API key + exact input already exists                               | Do **not** re-run `uniparser parse`. Read `token` from stderr JSON or `trigger_meta.json`; run `uniparser fetch --token TOKEN`                                |
+| Job not done / long wait / CLI interrupted / `processing` / poll timeout | Sync or poll still running; or local process stopped while server job continues | Wait; do **not** start a second `uniparser parse` for the same input. Use saved `token` with `uniparser fetch --token TOKEN`; files appear only after exit 0  |
+| `502 Bad Gateway` on URL input                                           | Server failed fetching or processing remote PDF                                 | Retry `uniparser parse "same url"` once; or download and `uniparser parse local.pdf`; or `uniparser fetch --token TOKEN` if a prior job exists                |
+| `PARSE_ERROR`                                                            | Server `status: error` at trigger / poll / fetch                                | Read `error.message` and `stage`; match rows above; check `trigger_error.json` / `pages_tree_error.json` / `formatted_error.json` under output dir if present |
+
+
+**Limits:** large PDFs may take 10–20+ minutes; public service ≤5 concurrent requests ([Important notes](./references/notes.md)); PDF URLs must be publicly accessible. Save `token` from success JSON or `trigger_meta.json` for recovery after interrupt or duplicate-token errors.
 
 ## Advanced
 
-For callbacks, custom `ParseMode`, or SDK examples, see [references/patterns.md](./references/patterns.md) and [references/api-reference.md](./references/api-reference.md).
+For callbacks, custom `ParseMode`, or SDK examples, see [Common patterns](./references/patterns.md) and [API reference](./references/api-reference.md).
+
+Full CLI reference (flags, examples, JSON details): [CLI README](../../uniparser_tools/cli/README.md) in this repository.
 
 Optional MCP server setup is in the [UniParser-Tools GitHub repo](https://github.com/dptech-corp/UniParser-Tools); it is separate from this CLI workflow.
 
 ## Reference documents
 
-| Topic | File |
-|-------|------|
-| API reference | [references/api-reference.md](./references/api-reference.md) |
-| Common patterns | [references/patterns.md](./references/patterns.md) |
-| Data classes | [references/data-classes.md](./references/data-classes.md) |
-| Layout types | [references/layout-types.md](./references/layout-types.md) |
-| Utilities | [references/utilities.md](./references/utilities.md) |
-| Important notes | [references/notes.md](./references/notes.md) |
+
+| Topic           | File                                              |
+| --------------- | ------------------------------------------------- |
+| API reference   | [api-reference.md](./references/api-reference.md) |
+| Common patterns | [patterns.md](./references/patterns.md)           |
+| Data classes    | [data-classes.md](./references/data-classes.md)   |
+| Layout types    | [layout-types.md](./references/layout-types.md)   |
+| Utilities       | [utilities.md](./references/utilities.md)         |
+| Important notes | [notes.md](./references/notes.md)                 |

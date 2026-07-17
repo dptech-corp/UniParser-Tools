@@ -300,7 +300,7 @@ class ErrorFlag(StrEnum):
     File_Required = "File is required"             # 需要给定文件流
     File_Not_Found = "File not found"              # 文件不存在
     File_Invalid = "File is invalid"               # PDF文件无效/页数为0
-    PDF_Page_Tree_Broken = "PDF page tree is broken or unsupported"  # PDF页树损坏或不受支持
+    PDF_Page_Tree_Broken = "PDF page tree is broken or unsupported"  # PDF页树损坏: len(doc)中包含的页索引无法被mupdf解析
     URL_Required = "URL is required"               # 需要给定URL
     Snip_Required = "Snippet is required"          # 需要给定文本片段
     Snip_Not_Found = "Snippet not found"           # 文本片段不存在
@@ -486,6 +486,8 @@ TextualTypes = [
     LayoutType.ExpressionCaption,
     LayoutType.TextLine,
     LayoutType.Abstract,
+    LayoutType.PageHeader,
+    LayoutType.PageFooter,
 ]
 
 EntityTypes = [
@@ -505,8 +507,6 @@ GroupedTypes = [
 IgnoreTypes = [
     LayoutType.Abandon,
     LayoutType.Watermark,
-    LayoutType.PageHeader,
-    LayoutType.PageFooter,
 ]
 
 FunctionalTypes = [
@@ -523,12 +523,17 @@ FunctionalTypes = [
 # fmt: on
 
 # convert to ppocr abbr
+# Source: PaddleOCR PP-OCRv5 multilingual docs:
+# https://www.paddleocr.ai/latest/en/version3.x/algorithm/PP-OCRv5/PP-OCRv5_multi_languages.html
 PPOCR_LANG = {
     Language.Chinese_Simplified: "ch",
     Language.Chinese_Traditional: "chinese_cht",
     Language.Japanese: "japan",
     Language.Korean: "korean",
     Language.English: "en",
+    Language.Arabic: "ar",
+    Language.Greek: "el",
+    Language.Hindi: "hi",
     Language.Russian: "ru",
     Language.French: "fr",
     Language.German: "german",
@@ -540,7 +545,11 @@ PPOCR_LANG = {
     Language.Swedish: "sv",
     Language.Spanish: "es",
     Language.Serbian: "rs_latin",
-    Language.Latin: "rs_latin",
+    Language.Serbian_Latin: "rs_latin",
+    Language.Latin: "la",
+    Language.Tamil: "ta",
+    Language.Telugu: "te",
+    Language.Thai: "th",
 }
 
 SUPPORTED_LANG = list(PPOCR_LANG.keys())

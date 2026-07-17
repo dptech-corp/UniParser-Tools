@@ -7,7 +7,6 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Dict, List, Union
 
-import fitz  # PyMuPDF
 from jinja2 import Environment, FileSystemLoader
 from PIL import Image
 
@@ -25,6 +24,7 @@ from uniparser_tools.common.dataclass import (
     TabularResult,
 )
 from uniparser_tools.order.structure_order import flatten_page
+from uniparser_tools.utils import pdf_render as fitz  # PDFium-backed, permissive license (was PyMuPDF)
 from uniparser_tools.utils.convert import dict2obj
 from uniparser_tools.utils.image import dump_image_base64_str
 from uniparser_tools.utils.log import get_root_logger
