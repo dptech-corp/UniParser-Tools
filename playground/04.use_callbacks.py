@@ -54,7 +54,7 @@ def main():
         print(f"Token: {token}")
         print("\nUniParser will now process the file in the background.")
         print("Once finished, it will POST the result to your callback URL.")
-        print("The payload will include a 'checksum' for you to verify using your 'callback_secret'.")
+        print("Verify the raw request body with the X-UniParser-Signature header and callback_secret.")
     else:
         print(f"Failed to submit task: {result.get('message')}")
         if "description" in result:

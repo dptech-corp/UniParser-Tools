@@ -20,6 +20,7 @@ from uniparser_tools.common.constant import (
     SemanticType,
     TableBBoxType,
     TextualTypes,
+    ThirdPartyFormatter,
     to_semantic,
 )
 
@@ -40,6 +41,9 @@ class TestStrEnum:
         assert "xy_cut" in list(OrderingMethod)
         assert "xy_cut" in OrderingMethod
         assert OrderingMethod("gap_tree") is OrderingMethod.GapTree
+
+    def test_third_party_formatter(self) -> None:
+        assert ThirdPartyFormatter.MinerU == "mineru"
 
 
 class TestIntEnum:

@@ -46,7 +46,7 @@ def main() -> int:
     input_group.add_argument("--token", help="UniParser task token (optional; prefer input flags)")
     input_group.add_argument("--file-path", help="Same local PDF path used in parse_document.py")
     input_group.add_argument("--image-path", help="Same local image path used in parse_document.py")
-    input_group.add_argument("--pdf-url", help="Same public PDF URL used in parse_document.py")
+    input_group.add_argument("--pdf-url", help="Same source URL used in parse_document.py")
     parser.add_argument(
         "--output-dir",
         "-o",

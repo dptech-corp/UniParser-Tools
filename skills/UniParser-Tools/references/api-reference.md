@@ -6,9 +6,10 @@
 |--------|-------------|
 | `trigger_file(file_path, ...)` | Submit PDF file for parsing |
 | `trigger_snip(snip_path, ...)` | Submit image for parsing |
-| `trigger_url(pdf_url, ...)` | Submit PDF URL for parsing |
+| `trigger_url(pdf_url, ...)` | Submit an HTTP/object-storage/local file URL for parsing |
 | `get_result(token, ...)` | Get raw parsing results |
 | `get_formatted(token, ...)` | Get formatted output |
+| `get_third_party_output(token, ...)` | Get MinerU-compatible output |
 
 ### trigger_file() - Async Callback Parameters
 
@@ -27,6 +28,8 @@ result = parser.trigger_file(
 | `sync` | bool | `True` | `False` enables async mode with callbacks |
 | `callback_url` | str | `None` | HTTP POST endpoint for completion notification |
 | `callback_secret` | str | `None` | Shared secret for HMAC-SHA256 payload verification |
+
+All trigger methods also accept the current server options `timeout`, `table_cls`, `inplace_update`, and `preset_layout`. File and image triggers additionally accept `padding_snip`; `admin_debug` is intended for controlled debugging only.
 
 ### trigger_snip() - Async Callback Parameters
 
@@ -69,8 +72,19 @@ Same parameters as `trigger_file()` for URL-based parsing.
 | `pages_dict=True` | Dict organized by pages | Page-level processing |
 | `pages_tree=True` | Nested tree with parent-child | Structure analysis |
 | `molecule_source=True` | Include molecule source images | Chemical structure analysis |
+| `return_half=True` | Return an available partial result | Polling long-running jobs |
 
 **Note:** `get_formatted()` also supports `marginalia=True` to include page headers/footers/numbers.
+
+## URL Sources and Third-Party Output
+
+`trigger_url()` accepts `http(s)://`, `s3://`, `oss://`, `tos://`, and `file://<absolute path>` sources. PDF and common image formats are supported.
+
+```python
+from uniparser_tools.common.constant import ThirdPartyFormatter
+
+result = parser.get_third_party_output(token, ThirdPartyFormatter.MinerU)
+```
 
 ## Ordering Methods
 

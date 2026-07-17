@@ -1,11 +1,11 @@
 ---
 name: uniparser-tools
-description: "Parse PDFs, document images, and public PDF URLs into structured Markdown via UniParser (https://uniparser.dp.tech/)—tables, equations as LaTeX, figures, and reading order. Use when the user wants to parse or extract a document, paper, patent, report, or PDF/image/URL into Markdown. Trigger terms: UniParser, uniparser_tools, 文档解析, PDF解析, 论文解析, 专利解析, PDF转Markdown, 表格提取, 公式识别, 化学分子, scientific paper, layout extraction, dp.tech, document parsing."
+description: "Parse PDFs, document images, and supported source URLs into structured Markdown via UniParser (https://uniparser.dp.tech/)—tables, equations as LaTeX, figures, and reading order. Use when the user wants to parse or extract a document, paper, patent, report, or PDF/image/URL into Markdown. Trigger terms: UniParser, uniparser_tools, 文档解析, PDF解析, 论文解析, 专利解析, PDF转Markdown, 表格提取, 公式识别, 化学分子, scientific paper, layout extraction, dp.tech, document parsing."
 ---
 
 # UniParser-Tools Skill
 
-Parse local PDFs, document images, and public PDF URLs into Markdown and structured layout JSON via [UniParser](https://uniparser.dp.tech/). Agents run the bundled CLI scripts—do not hand-write SDK code for the default workflow.
+Parse local PDFs, document images, and supported source URLs into Markdown and structured layout JSON via [UniParser](https://uniparser.dp.tech/). Agents run the bundled CLI scripts—do not hand-write SDK code for the default workflow.
 
 ## Installation
 
@@ -70,7 +70,7 @@ Prefer environment variables over pasting keys into chat.
 
 - Local PDF → `--file-path`
 - Local image (.png, .jpg, …) → `--image-path`
-- Public PDF URL → `--pdf-url`
+- Source URL (`http(s)`, `s3`, `oss`, `tos`, or `file`) → `--pdf-url`
 
 ```bash
 python3 scripts/parse_document.py --file-path "/path/to/document.pdf"
@@ -126,7 +126,7 @@ On failure, show stderr JSON `error.message`. Do not substitute vision-only read
 | Wrong input flag | Images require `trigger_snip` | Use `--image-path`, not `--file-path` |
 | `PARSE_ERROR` | Server `status: error` at trigger / poll / fetch | Read `error.message` and `stage`; match rows above; check `trigger_error.json` / `pages_tree_error.json` / `formatted_error.json` under output dir if present |
 
-**Limits:** large PDFs may take 10–20+ minutes; public service ≤5 concurrent requests ([references/notes.md](./references/notes.md)); `--pdf-url` must be publicly accessible. Recovery via `fetch_by_token.py` must use the **same** input string as the original parse—URL and file path are not interchangeable.
+**Limits:** large PDFs may take 10–20+ minutes; public service ≤5 concurrent requests ([references/notes.md](./references/notes.md)); URL schemes and private object-store access depend on the target deployment. Recovery via `fetch_by_token.py` must use the **same** input string as the original parse—URL and file path are not interchangeable.
 
 ## Advanced
 

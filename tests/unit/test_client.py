@@ -6,10 +6,28 @@ unless credentials are provided.
 
 from __future__ import annotations
 
+import json
+
 import pytest
 
 from uniparser_tools.api import clients as clients_mod
 from uniparser_tools.api.clients import UniParserClient
+from uniparser_tools.common.constant import ThirdPartyFormatter
+
+
+class _Response:
+    status_code = 200
+    text = ""
+    reason = "OK"
+
+    def json(self):
+        return {"status": "success"}
+
+
+class _ErrorResponse(_Response):
+    status_code = 403
+    text = "denied"
+    reason = "Forbidden"
 
 
 class TestClientConstruction:
@@ -22,12 +40,14 @@ class TestClientConstruction:
             UniParserClient(host="example.com", api_key="k")
 
     def test_endpoints_compose_correctly(self) -> None:
-        c = UniParserClient(host="https://example.com", api_key="k")
+        c = UniParserClient(host="https://example.com/", api_key="k")
+        assert c.host == "https://example.com"
         assert c.trigger_file_endpoint.endswith("/trigger-file-async")
         assert c.trigger_url_endpoint.endswith("/trigger-url-async")
         assert c.trigger_snip_endpoint.endswith("/trigger-snip-async")
         assert c.get_result_endpoint.endswith("/get-result")
         assert c.get_formatted_endpoint.endswith("/get-formatted")
+        assert c.get_third_party_output_endpoint.endswith("/get-third-party-output")
 
 
 class TestTokenHelpers:
@@ -81,6 +101,16 @@ class TestClientErrorShapes:
         assert result.get("status") == "error"
         assert "description" in result
 
+    def test_health_uses_requests_reason_for_http_errors(self, monkeypatch) -> None:
+        monkeypatch.setattr(clients_mod.requests, "get", lambda *args, **kwargs: _ErrorResponse())
+        result = UniParserClient(host="https://example.com", api_key="k").health()
+        assert result == {
+            "status": "error",
+            "http_status": 403,
+            "description": "Forbidden",
+            "body": "denied",
+        }
+
     def test_trigger_file_returns_error_dict_on_request_failure(self, monkeypatch, tmp_path) -> None:
         p = tmp_path / "dummy.pdf"
         p.write_bytes(b"%PDF-1.4 tiny")
@@ -90,3 +120,66 @@ class TestClientErrorShapes:
         assert isinstance(result, dict)
         assert result.get("status") == "error"
         assert "token" in result
+
+
+class TestClientPayloads:
+    def test_trigger_file_sends_new_options(self, monkeypatch, tmp_path) -> None:
+        captured = {}
+
+        def post(*args, **kwargs):
+            captured.update(kwargs)
+            return _Response()
+
+        path = tmp_path / "sample.pdf"
+        path.write_bytes(b"%PDF-1.4")
+        monkeypatch.setattr(clients_mod.requests, "post", post)
+
+        client = UniParserClient(host="https://example.com", api_key="k")
+        result = client.trigger_file(
+            str(path),
+            admin_debug=True,
+            timeout=12,
+            table_cls=True,
+            padding_snip=False,
+            inplace_update=True,
+            preset_layout=[[{"type": "table"}]],
+        )
+
+        assert result["status"] == "success"
+        assert captured["timeout"] == 12
+        assert captured["data"]["admin_debug"] is True
+        assert captured["data"]["table_cls"] is True
+        assert captured["data"]["padding_snip"] is False
+        assert captured["data"]["inplace_update"] is True
+        assert json.loads(captured["data"]["preset_layout"]) == [[{"type": "table"}]]
+
+    def test_result_methods_send_return_half(self, monkeypatch) -> None:
+        payloads = []
+
+        def post(*args, **kwargs):
+            payloads.append(kwargs["json"])
+            return _Response()
+
+        monkeypatch.setattr(clients_mod.requests, "post", post)
+        client = UniParserClient(host="https://example.com", api_key="k")
+
+        client.get_result("token", return_half=True)
+        client.get_formatted("token", return_half=True)
+
+        assert payloads[0]["return_half"] is True
+        assert payloads[1]["return_half"] is True
+
+    def test_third_party_output_payload(self, monkeypatch) -> None:
+        captured = {}
+
+        def post(*args, **kwargs):
+            captured.update(kwargs)
+            return _Response()
+
+        monkeypatch.setattr(clients_mod.requests, "post", post)
+        client = UniParserClient(host="https://example.com", api_key="k")
+
+        result = client.get_third_party_output("token")
+
+        assert result["status"] == "success"
+        assert captured["json"] == {"token": "token", "formatter": ThirdPartyFormatter.MinerU}

@@ -131,7 +131,7 @@ from uniparser_tools.common.constant import ParseMode, ParseModeTextual
 
 # 科学文献解析模式（推荐默认值）
 result = parser.trigger_file(
-    pdf_path="./example.pdf",
+    file_path="./example.pdf",
     textual=ParseModeTextual.OCRHighQuality,  # high quality
     equation=ParseMode.OCRHighQuality,        # high quality
     table=ParseMode.OCRHighQuality,           # high quality
@@ -194,7 +194,7 @@ UniParser 支持在异步任务完成后通过 HTTP POST 回调结果到指定�
 ```python
 # 提交带回调地址的异步解析任务
 result = parser.trigger_file(
-    pdf_path="./example.pdf",
+    file_path="./example.pdf",
     sync=False,  # 必须为 False 才能触发异步回调
     callback_url="https://your-server.com/api/callback",
     callback_secret="your-shared-secret",  # 用于校验回调内容的签名
@@ -212,7 +212,7 @@ if result["status"] == "success":
     print(f"异步任务已提交，完成后将回调到指定地址。Token: {token}")
 ```
 
-回调请求的 Payload 将包含 `checksum` 和 `content`。你可以使用 `callback_secret` 对 `content` 进行 HMAC-SHA256 签名校验，以确保内容未被篡改。
+回调结果以 JSON 请求体发送，签名位于 `X-UniParser-Signature: sha256=<digest>` 请求头中。接收端必须使用 `callback_secret` 对原始请求体字节计算 HMAC-SHA256，再使用常量时间比较校验签名。
 
 ### 5. 解析图片文件
 
@@ -230,6 +230,25 @@ result = parser.trigger_snip(
 if result["status"] == "success":
     token = result["token"]
     # 使用 token 获取解析结果
+```
+
+### 6. 解析 URL 或对象存储文件
+
+`trigger_url` 支持 `http(s)://`、`s3://`、`oss://`、`tos://` 和指向绝对路径的 `file://` URL；来源可以是 PDF 或常见图片格式。
+
+```python
+result = parser.trigger_url(
+    pdf_url="tos://bucket/path/document.pdf",
+    textual=ParseModeTextual.OCRHighQuality,
+)
+```
+
+### 7. 获取第三方格式输出
+
+```python
+from uniparser_tools.common.constant import ThirdPartyFormatter
+
+result = parser.get_third_party_output(token, formatter=ThirdPartyFormatter.MinerU)
 ```
 
 ## 使用示例
@@ -326,7 +345,7 @@ token = result["token"]
 
 ## 面向 AI Agent
 
-本仓库提供 **Agent Skill**（`skills/UniParser-Tools/`），让 Cursor、Claude Code 等助手在对话中自动完成 PDF / 图片 / 公网 PDF 链接 → 结构化 Markdown 与版面 JSON 的解析。用户只需安装 Skill、配置 API Key，并用自然语言或下方触发词发起任务；具体执行步骤由 Skill 内的 `SKILL.md` 指导 Agent，无需手动敲命令。
+本仓库提供 **Agent Skill**（`skills/UniParser-Tools/`），让 Cursor、Claude Code 等助手在对话中自动完成 PDF / 图片 / 支持的文件 URL → 结构化 Markdown 与版面 JSON 的解析。用户只需安装 Skill、配置 API Key，并用自然语言或下方触发词发起任务；具体执行步骤由 Skill 内的 `SKILL.md` 指导 Agent，无需手动敲命令。
 
 ### 快速使用 Skill
 
@@ -346,7 +365,7 @@ export UNIPARSER_API_KEY="your-api-key"
 
 **3. 在 Agent 中使用 Skill**
 
-在 Agent 对话中上传文件、粘贴公网 PDF 链接，或使用类似表述即可触发 Skill，例如：
+在 Agent 对话中上传文件、粘贴支持的文件链接，或使用类似表述即可触发 Skill，例如：
 
 - 中文：`解析这个 PDF`、`PDF 转 Markdown`、`提取论文`、`文档解析`、`表格提取`、`公式识别`、`化学分子`
 - 英文：`parse this PDF`、`extract this paper`、`PDF to markdown`、`UniParser`、`scientific paper`
@@ -400,7 +419,7 @@ UniParser 提供了基于 [Model Context Protocol](https://modelcontextprotocol.
 | `uniparser_health` | 检查服务健康状态 |
 | `uniparser_version` | 获取服务版本信息 |
 | `uniparser_parse_file` | 解析本机 PDF（传入绝对路径），返回 `content` 文本 |
-| `uniparser_parse_url` | 解析公网 PDF URL，返回 `content` 文本 |
+| `uniparser_parse_url` | 解析支持的文件 URL，返回 `content` 文本 |
 
 ### 快速启动
 

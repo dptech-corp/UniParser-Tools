@@ -764,6 +764,7 @@ class MoleculeResult(SemanticItem):
     'markush': True,
     'score': 0.9962224612367694,
     'smi': '*NC(=O)Nc1nc(*)c2c(*)n[nH]c2c1*',
+    'esmi': '',
     'sru': False
     """
 
@@ -771,6 +772,7 @@ class MoleculeResult(SemanticItem):
     caption: str = ""
     markush: bool = False
     smi: str = ""
+    esmi: str = ""
     sru: bool = False
     drawing: str = ""
 

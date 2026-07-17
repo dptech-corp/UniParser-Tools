@@ -54,16 +54,15 @@ result = parser.trigger_file(
 | `callback_url` | Yes | Your server endpoint that accepts POST requests |
 | `callback_secret` | Yes | Shared secret for HMAC-SHA256 signature verification |
 
-### Callback Payload
+### Callback Payload and Signature
 
-When the parsing task completes, the service sends a POST request to `callback_url`:
+When parsing completes, the service sends the result as the JSON request body. The signature is not embedded in the JSON; it is sent as `X-UniParser-Signature: sha256=<digest>`.
 
 ```json
 {
     "token": "abc123...",
     "status": "success",
-    "content": { ... },
-    "checksum": "hmac-sha256-signature"
+    "result": { ... }
 }
 ```
 
@@ -79,21 +78,20 @@ CALLBACK_SECRET = "your-secret-key"
 
 @app.route('/callback', methods=['POST'])
 def handle_callback():
-    data = request.json
-    content = data['content']
-    received_checksum = data['checksum']
-    
-    # Verify signature
+    body = request.get_data()
+    signature = request.headers.get('X-UniParser-Signature', '')
+    received_checksum = signature.split('=', 1)[-1]
+
     expected = hmac.new(
         CALLBACK_SECRET.encode(),
-        json.dumps(content).encode(),
+        body,
         hashlib.sha256
     ).hexdigest()
-    
+
     if not hmac.compare_digest(received_checksum, expected):
         return {'error': 'Invalid signature'}, 401
-    
-    # Process the result
+
+    data = request.get_json()
     token = data['token']
     print(f"Task {token} completed!")
     return {'status': 'ok'}
@@ -123,7 +121,7 @@ result = parser.trigger_snip(
 token = result["token"]
 ```
 
-## Pattern 6: Parse PDF from URL
+## Pattern 6: Parse from URL or Object Storage
 
 ```python
 result = parser.trigger_url(
@@ -132,4 +130,15 @@ result = parser.trigger_url(
     proxy=None,  # Optional proxy
 )
 token = result["token"]
+```
+
+The same method accepts `s3://`, `oss://`, `tos://`, and `file://<absolute path>` sources, including supported image files.
+
+## Pattern 7: Fetch Partial or MinerU Output
+
+```python
+from uniparser_tools.common.constant import ThirdPartyFormatter
+
+partial = parser.get_result(token, return_half=True, pages_tree=True)
+mineru = parser.get_third_party_output(token, ThirdPartyFormatter.MinerU)
 ```

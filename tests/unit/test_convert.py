@@ -50,7 +50,7 @@ BASE_BLOCK = dict(
             },
             TabularResult,
         ),
-        ({"markush": False, "smi": "CCO", "caption": "ethanol"}, MoleculeResult),
+        ({"markush": False, "smi": "CCO", "esmi": "CCO", "caption": "ethanol"}, MoleculeResult),
         ({"data": "a|b\n1|2"}, ChartResult),
         ({"desc": "a cat"}, FigureResult),
         ({"latex_repr": "a+b"}, EquationResult),

@@ -300,6 +300,7 @@ class ErrorFlag(StrEnum):
     File_Required = "File is required"             # 需要给定文件流
     File_Not_Found = "File not found"              # 文件不存在
     File_Invalid = "File is invalid"               # PDF文件无效/页数为0
+    PDF_Page_Tree_Broken = "PDF page tree is broken or unsupported"  # PDF页树损坏或不受支持
     URL_Required = "URL is required"               # 需要给定URL
     Snip_Required = "Snippet is required"          # 需要给定文本片段
     Snip_Not_Found = "Snippet not found"           # 文本片段不存在
@@ -317,6 +318,7 @@ class ErrorFlag(StrEnum):
     PDF_Pages_Exceeded = "PDF page count exceeds limit" # PDF页数超过限制
     File_Type_Not_Allowed = "File type not allowed" # 文件类型不允许
     Domain_Not_Allowed = "Domain not allowed"      # 域名不允许
+    Unsupported_Formatter = "Unsupported formatter" # 不支持的格式化器
 
 
 class LayoutType(StrEnum):
@@ -447,6 +449,10 @@ class SemanticType(StrEnum):
     Equation = "equation"       # 数学公式
     # ignore
     Ignore = "ignore"           # 忽略
+
+
+class ThirdPartyFormatter(StrEnum):
+    MinerU = "mineru"
 
 
 TextualTypes = [

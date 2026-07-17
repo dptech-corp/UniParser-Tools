@@ -57,7 +57,7 @@ MCP 进程通过 [`UniParserClient`](../uniparser_tools/api/clients.py) 访问�
 | `uniparser_health` | `GET /health`，返回服务健康状态字符串 |
 | `uniparser_version` | `GET /version`，返回版本信息 |
 | `uniparser_parse_file` | 参数：本机 PDF **绝对路径**。流程：`POST /trigger-file-async` → 成功后再 `POST /get-formatted`，返回合并后的 `content` 文本 |
-| `uniparser_parse_url` | 参数：公网可访问的 PDF **URL**。流程：`POST /trigger-url-async` → `POST /get-formatted`，返回 `content` |
+| `uniparser_parse_url` | 参数：服务端可访问的文件 **URL**（支持 `http(s)`、`s3`、`oss`、`tos`、`file`）。流程：`POST /trigger-url-async` → `POST /get-formatted`，返回 `content` |
 
 `uniparser_parse_file` 仅适合**同机**或**体积较小**的 PDF；大文件或带宽受限时，建议将文件放到公网可访问地址后使用 `uniparser_parse_url`。
 

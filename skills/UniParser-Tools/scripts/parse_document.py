@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Parse a local PDF, local image, or public PDF URL with UniParser-Tools.
+Parse a local PDF, local image, or supported source URL with UniParser-Tools.
 
 Flow: submit → token → poll get_result until success → save pages_tree + Markdown.
 
@@ -48,7 +48,7 @@ def main() -> int:
     input_group = parser.add_mutually_exclusive_group(required=True)
     input_group.add_argument("--file-path", help="Local PDF file path")
     input_group.add_argument("--image-path", help="Local image path (snippet)")
-    input_group.add_argument("--pdf-url", help="Public PDF URL")
+    input_group.add_argument("--pdf-url", help="Source URL: http(s), s3, oss, tos, or file")
     parser.add_argument(
         "--output-dir",
         "-o",

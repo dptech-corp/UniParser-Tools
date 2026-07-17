@@ -29,7 +29,7 @@ Available on all result types:
 | `TextualResult` | `text`, `contents`, `bboxes` | Text content with bounding boxes |
 | `TabularResult` | `structure` (HTML), `placeholders`, `contents` | Table with HTML structure, has `.df` (DataFrame) |
 | `EquationResult` | `latex_repr` | Math equation in LaTeX format |
-| `MoleculeResult` | `smi`, `caption`, `markush`, `drawing` | Chemical structure (SMILES notation) |
+| `MoleculeResult` | `smi`, `esmi`, `caption`, `markush`, `drawing` | Chemical structure with SMILES and extended SMILES |
 | `ExpressionResult` | `reactions` | Chemical reaction with `reactants`, `conditions`, `products` |
 | `ChartResult` | `data` | Chart data, has `.df` (DataFrame) |
 | `FigureResult` | `desc` | Figure with description |

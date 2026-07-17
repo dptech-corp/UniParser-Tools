@@ -203,6 +203,14 @@ class TestMoleculeResult:
         )
         assert r.plain == "*NC(=O)*"
 
+    def test_accepts_esmi(self) -> None:
+        r = MoleculeResult(
+            **{**ITEM_KWARGS, "type": LayoutType.Molecule},
+            smi="CCO",
+            esmi="CCO",
+        )
+        assert r.esmi == "CCO"
+
     def test_markdown_wraps_in_bold_italic(self) -> None:
         r = MoleculeResult(
             **{**ITEM_KWARGS, "type": LayoutType.Molecule},
