@@ -54,6 +54,6 @@ for page in pages_tree:
         print(f"LaTeX: {item.latex}")
 
         # For tables, access DataFrame
-        if hasattr(item, 'df'):
+        if hasattr(item, "df"):
             print(f"DataFrame:\n{item.df}")
 ```

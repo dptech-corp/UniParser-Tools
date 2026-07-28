@@ -25,22 +25,22 @@ clean_text = clean_scientific_text(text, strict=False)
 from uniparser_tools.utils.bbox import BBox, Point
 
 # BBox properties
-bbox.area        # Area
-bbox.width       # Width
-bbox.height      # Height
-bbox.tl          # Top-left point
-bbox.br          # Bottom-right point
-bbox.ctr         # Center point
-bbox.xyxy        # (x1, y1, x2, y2) tuple
-bbox.xywh        # (x, y, w, h) tuple
+bbox.area  # Area
+bbox.width  # Width
+bbox.height  # Height
+bbox.tl  # Top-left point
+bbox.br  # Bottom-right point
+bbox.ctr  # Center point
+bbox.xyxy  # (x1, y1, x2, y2) tuple
+bbox.xywh  # (x, y, w, h) tuple
 
 # BBox operations
-bbox.iou(other)           # Intersection over Union
-bbox.iof(other)           # Intersection over Foreground
+bbox.iou(other)  # Intersection over Union
+bbox.iof(other)  # Intersection over Foreground
 bbox.intersection(other)  # Intersection box
-bbox.union(other)         # Union box
-bbox.expand(pix, wh)      # Expand by pixels
-bbox.shrink(pix, wh)      # Shrink by pixels
+bbox.union(other)  # Union box
+bbox.expand(pix, wh)  # Expand by pixels
+bbox.shrink(pix, wh)  # Shrink by pixels
 ```
 
 ## Text Processing

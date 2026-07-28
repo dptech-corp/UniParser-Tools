@@ -101,6 +101,7 @@ uniparser parse report.pdf
 
 ```python
 import os
+
 parser = UniParserClient(
     host="https://uniparser.dp.tech/",
     api_key=os.getenv("UNIPARSER_API_KEY"),
@@ -152,13 +153,10 @@ import os
 from uniparser_tools.api.clients import UniParserClient
 
 # 设置 API 密钥
-api_key = os.getenv('UNIPARSER_API_KEY')
+api_key = os.getenv("UNIPARSER_API_KEY")
 
 # 初始化客户端
-parser = UniParserClient(
-    host="https://uniparser.dp.tech/",
-    api_key=api_key
-)
+parser = UniParserClient(host="https://uniparser.dp.tech/", api_key=api_key)
 ```
 
 ### 2. 解析 PDF 文件（科学文献推荐默认）
@@ -170,12 +168,12 @@ from uniparser_tools.common.constant import ParseMode, ParseModeTextual
 result = parser.trigger_file(
     file_path="./example.pdf",
     textual=ParseModeTextual.OCRHighQuality,  # high quality
-    equation=ParseMode.OCRHighQuality,        # high quality
-    table=ParseMode.OCRHighQuality,           # high quality
-    chart=ParseMode.DumpBase64,               # original image base64
-    figure=ParseMode.DumpBase64,              # original image base64
-    expression=ParseMode.DumpBase64,          # original image base64
-    molecule=ParseMode.OCRFast,               # fast
+    equation=ParseMode.OCRHighQuality,  # high quality
+    table=ParseMode.OCRHighQuality,  # high quality
+    chart=ParseMode.DumpBase64,  # original image base64
+    figure=ParseMode.DumpBase64,  # original image base64
+    expression=ParseMode.DumpBase64,  # original image base64
+    molecule=ParseMode.OCRFast,  # fast
 )
 
 if result["status"] == "success":
@@ -346,9 +344,9 @@ from uniparser_tools.common.constant import FormatFlag
 result = parser.get_formatted(
     token,
     content=True,
-    textual=FormatFlag.Markdown,    # 文本使用 Markdown
-    table=FormatFlag.Html,          # 表格使用 HTML
-    equation=FormatFlag.Latex,       # 公式使用 LaTeX
+    textual=FormatFlag.Markdown,  # 文本使用 Markdown
+    table=FormatFlag.Html,  # 表格使用 HTML
+    equation=FormatFlag.Latex,  # 公式使用 LaTeX
 )
 
 if result["status"] == "success":

@@ -14,6 +14,7 @@
    import hmac
    import hashlib
 
+
    def verify_callback(body, signature, secret):
        checksum = signature.split("=", 1)[-1]
        expected = hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()

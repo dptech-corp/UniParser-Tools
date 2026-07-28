@@ -16,9 +16,9 @@
 ```python
 result = parser.trigger_file(
     file_path="./document.pdf",
-    sync=False,                    # Required for async mode
-    callback_url="https://...",    # Your callback endpoint
-    callback_secret="your-secret", # For signature verification
+    sync=False,  # Required for async mode
+    callback_url="https://...",  # Your callback endpoint
+    callback_secret="your-secret",  # For signature verification
     # ... other parse mode parameters
 )
 ```
