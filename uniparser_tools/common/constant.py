@@ -531,28 +531,123 @@ PPOCR_LANG = {
     Language.Japanese: "japan",
     Language.Korean: "korean",
     Language.English: "en",
-    Language.Arabic: "ar",
-    Language.Greek: "el",
-    Language.Hindi: "hi",
-    Language.Russian: "ru",
-    Language.French: "fr",
-    Language.German: "german",
-    Language.Hungarian: "hu",
-    Language.Norwegian: "no",
+    # Latin-script family
+    Language.Afrikaans: "af",
+    Language.Albanian: "sq",
+    Language.Azerbaijani: "az",
+    Language.Basque: "eu",
+    Language.Bosnian: "bs",
+    Language.Catalan: "ca",
+    Language.Croatian: "hr",
+    Language.Czech: "cs",
     Language.Danish: "da",
-    Language.Portuguese: "pt",
-    Language.Polish: "pl",
-    Language.Swedish: "sv",
-    Language.Spanish: "es",
-    Language.Serbian: "rs_latin",
-    Language.Serbian_Latin: "rs_latin",
+    Language.Dutch: "nl",
+    Language.Estonian: "et",
+    Language.Filipino: "tl",
+    Language.Finnish: "fi",
+    Language.French: "fr",
+    Language.Galician: "gl",
+    Language.German: "de",
+    Language.Hungarian: "hu",
+    Language.Icelandic: "is",
+    Language.Indonesian: "id",
+    Language.Irish: "ga",
+    Language.Italian: "it",
+    Language.Kurdish: "ku",
     Language.Latin: "la",
+    Language.Latvian: "lv",
+    Language.Lithuanian: "lt",
+    Language.Luxembourgish: "lb",
+    Language.Malay: "ms",
+    Language.Maltese: "mt",
+    Language.Norwegian: "no",
+    Language.Occitan: "oc",
+    Language.Polish: "pl",
+    Language.Portuguese: "pt",
+    Language.Quechua: "qu",
+    Language.Romanian: "ro",
+    Language.Romansh: "rm",
+    Language.Serbian_Latin: "rs_latin",
+    Language.Slovak: "sk",
+    Language.Slovenian: "sl",
+    Language.Spanish: "es",
+    Language.Swahili: "sw",
+    Language.Swedish: "sv",
+    Language.Turkish: "tr",
+    Language.Uzbek: "uz",
+    Language.Vietnamese: "vi",
+    Language.Welsh: "cy",
+    # East Slavic / Cyrillic families
+    Language.Avaric: "ava",
+    Language.Bashkir: "ba",
+    Language.Belarusian: "be",
+    Language.Bulgarian: "bg",
+    Language.Chechen: "che",
+    Language.Chuvash: "cv",
+    Language.Eastern_Mari: "mhr",
+    Language.Kalmyk: "xal",
+    Language.Kazakh: "kk",
+    Language.Komi: "kv",
+    Language.Kyrgyz: "ky",
+    Language.Lezghian: "lez",
+    Language.Macedonian: "mk",
+    Language.Mongolian: "mn",
+    Language.Ossetic: "os",
+    Language.Russia_Buriat: "bua",
+    Language.Russian: "ru",
+    Language.Serbian: "rs_cyrillic",
+    Language.Tajik: "tg",
+    Language.Tatar: "tt",
+    Language.Tuvinian: "tyv",
+    Language.Ukrainian: "uk",
+    Language.Yakut: "sah",
+    # Arabic-script family
+    Language.Arabic: "ar",
+    Language.Pashto: "ps",
+    Language.Persian: "fa",
+    Language.Sindhi: "sd",
+    Language.Urdu: "ur",
+    Language.Uyghur: "ug",
+    # Devanagari family
+    Language.Bihari_languages: "bh",
+    Language.Goan_Konkani: "gom",
+    Language.Hindi: "hi",
+    Language.Maithili: "mai",
+    Language.Marathi: "mr",
+    Language.Nepali: "ne",
+    Language.Newari: "new",
+    Language.Sanskrit: "sa",
+    # Specific PP-OCRv5 models
+    Language.Greek: "el",
     Language.Tamil: "ta",
     Language.Telugu: "te",
     Language.Thai: "th",
 }
 
 SUPPORTED_LANG = list(PPOCR_LANG.keys())
+
+# Normalize detected concrete languages to OCR model-language families. The target
+# values below are existing Language enum members used as representatives for the
+# PaddleOCR model groups documented in "Models and Their Supported Languages".
+OCR_LANG_ALIASES = {
+    # Chinese model family
+    Language.Cantonese: Language.Chinese_Traditional,
+    Language.Wu_Chinese: Language.Chinese_Simplified,
+    # Cyrillic family fallback for UniParser languages not listed in PaddleOCR docs.
+    Language.Western_Mari: Language.Eastern_Mari,
+    # arabic_PP-OCRv5_mobile_rec
+    Language.Central_Kurdish: Language.Arabic,
+}
+
+
+def to_ocr_lang(lang: Language) -> Language:
+    try:
+        lang = Language(lang)
+    except (TypeError, ValueError):
+        return Language.Unknown
+    if lang in SUPPORTED_LANG:
+        return lang
+    return OCR_LANG_ALIASES.get(lang, Language.Unknown)
 
 
 def to_semantic(layout_type: LayoutType):

@@ -18,9 +18,20 @@ from PIL import Image
 default_font_path = os.path.join(os.path.dirname(__file__), "DejaVuSerif.ttf")
 
 
+def _prepare_image_for_jpeg(image: Image.Image) -> Image.Image:
+    if image.mode == "RGB":
+        return image
+    if image.mode in ("RGBA", "LA") or (image.mode == "P" and "transparency" in image.info):
+        rgba = image.convert("RGBA")
+        background = Image.new("RGB", rgba.size, (255, 255, 255))
+        background.paste(rgba, mask=rgba.getchannel("A"))
+        return background
+    return image.convert("RGB")
+
+
 def dump_image_base64_str(image: Image.Image, quality: int = 85) -> str:
     img_byte_arr = BytesIO()
-    image.save(img_byte_arr, format="JPEG", quality=quality)
+    _prepare_image_for_jpeg(image).save(img_byte_arr, format="JPEG", quality=quality)
     return base64.b64encode(img_byte_arr.getvalue()).decode("ascii")
 
 

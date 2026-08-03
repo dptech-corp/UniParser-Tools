@@ -133,11 +133,15 @@ def sticky_items(items: List[Item], *, offset: int = 5, axis: str = "both") -> N
 
     # 3. 按 axis 吸合
     if axis in ("x", "both"):
-        bboxes[:, 0] = _snap(x1)  # x1
-        bboxes[:, 2] = _snap(x2)  # x2
+        snapped_x1 = _snap(x1)
+        snapped_x2 = _snap(x2)
+        bboxes[:, 0] = np.minimum(snapped_x1, snapped_x2)  # x1
+        bboxes[:, 2] = np.maximum(snapped_x1, snapped_x2)  # x2
     if axis in ("y", "both"):
-        bboxes[:, 1] = _snap(y1)  # y1
-        bboxes[:, 3] = _snap(y2)  # y2
+        snapped_y1 = _snap(y1)
+        snapped_y2 = _snap(y2)
+        bboxes[:, 1] = np.minimum(snapped_y1, snapped_y2)  # y1
+        bboxes[:, 3] = np.maximum(snapped_y1, snapped_y2)  # y2
 
     # 4. 写回对象
     new_items = []
