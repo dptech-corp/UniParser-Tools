@@ -185,20 +185,23 @@ def clean_flatten_pages(pages: List[List[SemanticItem]]):
                     if "doi:10." in item.plain.lower() or "https://doi.org/" in item.plain.lower():
                         if item.contents:
                             new_bboxes, new_contents, new_types = [], [], []
+                            item_bboxes = getattr(item, "bboxes", None)
                             item_types = getattr(item, "types", None)
-                            for idx, (bbox, line) in enumerate(zip(item.bboxes, item.contents)):
+                            for idx, line in enumerate(item.contents):
                                 if line.lower().startswith("doi:10.") or line.lower().startswith("https://doi.org/"):
                                     pass
                                 else:
-                                    new_bboxes.append(bbox)
                                     new_contents.append(line)
+                                    if item_bboxes:
+                                        new_bboxes.append(item_bboxes[idx])
                                     if item_types:
                                         new_types.append(item_types[idx])
-                            item.bboxes = new_bboxes
                             item.contents = new_contents
+                            if item_bboxes:
+                                item.bboxes = new_bboxes
                             if item_types:
                                 item.types = new_types
-                            item.text = "".join(item.contents)
+                            item.text = item.plain
                         else:
                             item.text = re.sub(r"(?:doi:|https://doi\.org/)10\.\S+", "", item.text, flags=re.I)
                     item.text = item.text.replace("F IGU R E", "FIGURE")  # preprint_ck_2311.14410v2
