@@ -227,14 +227,43 @@ def build_page_tree(
                     method="grouped-2",
                 )
             elif isinstance(self_item, LayoutItem):
-                return GroupedResult.clone(self_item, bbox=bbox, items=sorted_children, level=level)
+                return GroupedResult.clone(
+                    self_item,
+                    bbox=bbox,
+                    items=sorted_children,
+                    level=level,
+                    method="grouped-1",
+                )
+            elif isinstance(self_item, GroupedResult):
+                return GroupedResult.clone(
+                    self_item,
+                    bbox=bbox,
+                    items=[*self_item.items, *sorted_children],
+                    level=level,
+                    method="default",
+                )
             else:
                 if self_item.type in [LayoutTypeBot.Image]:
                     return GroupedResult.clone(
-                        self_item, type=LayoutTypeBot.Group, bbox=bbox, items=[self_item, *sorted_children]
+                        self_item,
+                        type=LayoutTypeBot.Group,
+                        bbox=bbox,
+                        items=[self_item, *sorted_children],
+                        level=level,
+                        method="grouped-3",
                     )
                 else:
-                    return GroupedResult.clone(self_item, bbox=bbox, items=[self_item, *sorted_children])
+                    # This is a synthetic container around ``self_item``. Keeping
+                    # its original type would duplicate page_block_type between
+                    # the parent and the first child.
+                    return GroupedResult.clone(
+                        self_item,
+                        type=LayoutType.Group,
+                        bbox=bbox,
+                        items=[self_item, *sorted_children],
+                        level=level,
+                        method="grouped-4",
+                    )
         else:
             return self_item
 
