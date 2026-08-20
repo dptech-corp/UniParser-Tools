@@ -186,8 +186,8 @@ def render_det_to_html(item: SemanticItem, order: int, pil_image: Image.Image) -
             copy_type = "text"
     # 公式 (Equation)
     elif isinstance(item, EquationResult):
-        content_html = f'<div class="rendered-box" data-type="latex">$${item.latex}$$</div>'
-        edit_val = html.escape(item.latex).strip()
+        content_html = f'<div class="rendered-box" data-type="latex">{item.markdown}</div>'
+        edit_val = html.escape(item.markdown).strip()
         copy_type = "latex"
     # 表格 (Table)
     elif isinstance(item, (TabularResult, ExpressionResult, ChartResult)):
@@ -245,6 +245,7 @@ def plotly_pdf_results_interactive(pages_dict: List[List[Dict]], file_path: str,
     if page_idx >= total_pages:
         page_idx = pages[-1]
 
+    thumbnails = []
     try:
         pdf = PDF("", 0, Language.Unknown, file_path)
         if pdf.is_pdf:
@@ -255,8 +256,21 @@ def plotly_pdf_results_interactive(pages_dict: List[List[Dict]], file_path: str,
             max_dpi = min(144, max(1, int(4096 * 72 / max(rect.width, rect.height))))  # max 4096 pixels
             pix: fitz.Pixmap = page.get_pixmap(dpi=max_dpi)
             pil_image = Image.frombytes("RGB", (pix.width, pix.height), pix.samples)
+            for i in range(total_pages):
+                try:
+                    thumb_page = doc[i]
+                    thumb_rect = thumb_page.rect
+                    thumb_dpi = max(8, int(80 * 72 / max(thumb_rect.width, thumb_rect.height, 1)))
+                    thumb_pix = thumb_page.get_pixmap(dpi=thumb_dpi)
+                    thumb_img = Image.frombytes("RGB", (thumb_pix.width, thumb_pix.height), thumb_pix.samples)
+                    thumbnails.append(dump_image_base64_str(thumb_img, quality=50))
+                except Exception:
+                    thumbnails.append("")
         else:
             pil_image = Image.open(file_path)
+            thumb = pil_image.copy()
+            thumb.thumbnail((80, 120))
+            thumbnails.append(dump_image_base64_str(thumb, quality=50))
     except Exception:
         get_root_logger().exception("[Viz Error] Load image failed:")
         pil_image = Image.new("RGB", (800, 1000), "white")
@@ -275,6 +289,7 @@ def plotly_pdf_results_interactive(pages_dict: List[List[Dict]], file_path: str,
         "filename": str(file_path).split("/")[-1],
         "page_index": page_idx,
         "total_pages": total_pages,
+        "thumbnails": thumbnails,
     }
 
 
@@ -285,14 +300,21 @@ def create_interactive_html_from_data(vis_data: Dict) -> str:
     total_pages: int = vis_data["total_pages"]
     current_page: int = vis_data["page_index"]
 
+    thumbnails = vis_data.get("thumbnails", [])
     sidebar_parts = ['<div class="page-sidebar" id="page-sidebar">']
     for i in range(total_pages):
         active_cls = "active" if i == current_page else ""
         current_page_attr = ' data-current-page="true"' if i == current_page else ""
+        thumb_b64 = thumbnails[i] if i < len(thumbnails) and thumbnails[i] else ""
+        thumb_html = (
+            f'<img class="page-thumb-img" src="data:image/jpeg;base64,{thumb_b64}" alt="Page {i + 1}" />'
+            if thumb_b64
+            else '<div class="page-thumb-label">PAGE</div>'
+        )
         sidebar_parts.append(
             f'<div class="page-thumb {active_cls}" onclick="goToPage({i})"{current_page_attr}>'
+            f"{thumb_html}"
             f'<div class="page-thumb-num">{i + 1}</div>'
-            f'<div class="page-thumb-label">PAGE</div>'
             f"</div>"
         )
     sidebar_parts.append("</div>")
@@ -322,7 +344,7 @@ def create_interactive_html_from_data(vis_data: Dict) -> str:
             d["anno_smiles"] = item.plain
             d["anno_svg"] = getattr(item, "drawing", "")
         elif isinstance(item, EquationResult):
-            d["anno_latex"] = item.latex
+            d["anno_latex"] = item.latex_repr
         else:
             d["anno_text"] = item.plain
         items_dicts.append(d)

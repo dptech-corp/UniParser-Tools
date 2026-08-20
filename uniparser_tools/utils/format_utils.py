@@ -17,8 +17,6 @@ def parse_inline_text(text: str) -> Tuple[List[str], List[LayoutType]]:
     latex_marker = re.compile(r"\\[A-Za-z]+|[\^_{}=]|[A-Za-z]\s*[+\-*/=<>]\s*[A-Za-z0-9\\]")
     pattern = re.compile(
         r"(?P<molecule>\*\*\*(?P<molecule_text>.+?)\*\*\*)|"
-        r"(?P<code_molecule><code>(?P<code_molecule_text>.+?)</code>)|"
-        r"(?P<tick_molecule>`(?P<tick_molecule_text>.+?)`)|"
         r"(?P<equation>"
         r"\\\[(?P<eq_display_text>.+?)\\\]|"
         r"\\\((?P<eq_inline_text>.+?)\\\)|"
@@ -35,15 +33,8 @@ def parse_inline_text(text: str) -> Tuple[List[str], List[LayoutType]]:
             contents.append(text[pos : match.start()])
             types.append(LayoutType.Text)
 
-        if (
-            match.group("molecule") is not None
-            or match.group("code_molecule") is not None
-            or match.group("tick_molecule") is not None
-        ):
-            molecule_text = (
-                match.group("molecule_text") or match.group("code_molecule_text") or match.group("tick_molecule_text")
-            )
-            contents.append(molecule_text.strip())
+        if match.group("molecule") is not None:
+            contents.append(match.group("molecule_text").strip())
             types.append(LayoutType.Molecule)
         else:
             equation_text = (

@@ -11,7 +11,7 @@ from io import StringIO
 from typing import Dict, List, Union
 
 from uniparser_tools.common.constant import LayoutType
-from uniparser_tools.common.dataclass import GroupedResult, SemanticItem, TextualResult
+from uniparser_tools.common.dataclass import GroupedResult, Item, SemanticItem, TextualResult
 from uniparser_tools.utils.log import get_root_logger
 
 
@@ -536,11 +536,18 @@ def tree_repr(item: GroupedResult, output_str: StringIO = None, prefix: str = ""
     # │       └── legend
     # └── image caption
 
+    def item_repr(item: Item):
+        if isinstance(item, GroupedResult):
+            value = f"{item.type} [{item.block} | {item.method}]"
+        else:
+            value = f"{item.type} [{item.block}]"
+        return f"{value}{item.p_bbox if verbose else ''}"
+
     # 打印当前节点
     if output_str is None:
         output_str = StringIO()
     if not prefix:
-        output_str.write(f"{prefix}{item.type}{item.p_bbox if verbose else ''}\n")
+        output_str.write(f"{prefix}{item_repr(item)}\n")
     if isinstance(item, GroupedResult) and item.items:
         last_idx = len(item.items) - 1
         for idx, child in enumerate(item.items):
@@ -551,10 +558,10 @@ def tree_repr(item: GroupedResult, output_str: StringIO = None, prefix: str = ""
                 branch = "├─ "
                 next_prefix = prefix + "│  "
             if isinstance(child, GroupedResult) and child.items:
-                output_str.write(f"{prefix}{branch}{child.type}{child.p_bbox if verbose else ''}\n")
+                output_str.write(f"{prefix}{branch}{item_repr(child)}\n")
                 tree_repr(child, output_str=output_str, prefix=next_prefix, verbose=verbose)
             else:
-                output_str.write(f"{prefix}{branch}{child.type}{child.p_bbox if verbose else ''}\n")
+                output_str.write(f"{prefix}{branch}{item_repr(child)}\n")
     return output_str.getvalue()
 
 

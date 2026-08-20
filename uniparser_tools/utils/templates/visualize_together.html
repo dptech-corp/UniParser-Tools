@@ -187,7 +187,6 @@
         /* 分页缩略图调整 */
         .page-thumb {
             width: 75px;
-            height: 95px;
             background: #fff;
             cursor: pointer;
             border: 1px solid #cbd5e1;
@@ -203,6 +202,9 @@
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
             position: relative;
             user-select: none;
+            padding: 4px;
+            gap: 2px;
+            overflow: hidden;
         }
 
         .page-thumb:hover {
@@ -218,6 +220,13 @@
             box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
             color: #3b82f6;
             font-weight: bold;
+        }
+
+        .page-thumb-img {
+            width: 100%;
+            height: auto;
+            border-radius: 3px;
+            display: block;
         }
 
         .page-thumb-num {
