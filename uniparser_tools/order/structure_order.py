@@ -88,6 +88,28 @@ def count_items(item: SemanticItem) -> int:
         return 1
 
 
+def ensure_unique_item_ids(items: List[SemanticItem], stage: str) -> None:
+    """Warn about duplicate ``page_block_type`` values in a nested item tree."""
+    seen = {}
+
+    def visit(item: SemanticItem, path: str) -> None:
+        item_id = (item.page, item.block, item.type)
+        previous_path = seen.get(item_id)
+        if previous_path is not None:
+            readable_id = f"{item.page}_{item.block}_{item.type.value}"
+            get_root_logger().warning(
+                f"Duplicate item id {readable_id} found during {stage}: {previous_path} and {path}"
+            )
+        else:
+            seen[item_id] = path
+        if isinstance(item, GroupedResult):
+            for child_idx, child in enumerate(item.items):
+                visit(child, f"{path}.items[{child_idx}]")
+
+    for item_idx, item in enumerate(items):
+        visit(item, f"items[{item_idx}]")
+
+
 def build_page_tree(
     page: List[SemanticItem], thresh: float = 0.95, merge_group: bool = False, flat: bool = True
 ) -> List[SemanticItem]:
@@ -161,13 +183,22 @@ def build_page_tree(
         if node["children"]:
             # 递归处理每个子节点
             children = [build_node(child, level + 1) for child in node["children"]]
-            reversed = self_item.type != LayoutType.Group
-            sorted_children, _ = StructureOrder().sort(
-                children,
-                method=OrderingMethod.XYCut,
-                reversed=reversed,
-                line_height=1,
-            )
+            if self_item.type == LayoutType.Group:
+                sorted_children, _ = StructureOrder().sort(
+                    children,
+                    method=OrderingMethod.XYCutExp,
+                    reversed=False,
+                    line_height=1,
+                    primary="x",
+                    sequential=False,
+                )
+            else:
+                sorted_children, _ = StructureOrder().sort(
+                    children,
+                    method=OrderingMethod.XYCut,
+                    reversed=True,
+                    line_height=1,
+                )
             bbox = deepcopy(self_item.bbox)
             if len(sorted_children) >= 2 and merge_group:
                 union_bbox = None
@@ -182,18 +213,23 @@ def build_page_tree(
                         (self_item.bbox * self_item.page_size).shrink(allowd_pixel, [-1, -1]) / self_item.page_size
                     ).union(union_bbox):
                         bbox = union_bbox
-            if isinstance(self_item, LayoutItem):
+            if self_item.type in [
+                LayoutTypeTop.Figure,
+                LayoutTypeTop.Expression,
+                LayoutTypeTop.Chart,
+            ]:
+                return GroupedResult.clone(
+                    self_item,
+                    type=LayoutTypeTop.FigureGroup,
+                    bbox=bbox,
+                    items=[self_item, *sorted_children],
+                    level=level,
+                    method="grouped-2",
+                )
+            elif isinstance(self_item, LayoutItem):
                 return GroupedResult.clone(self_item, bbox=bbox, items=sorted_children, level=level)
             else:
-                if self_item.type in [
-                    LayoutTypeTop.Figure,
-                    LayoutTypeTop.Expression,
-                    LayoutTypeTop.Chart,
-                ]:
-                    return GroupedResult.clone(
-                        self_item, type=LayoutTypeTop.FigureGroup, bbox=bbox, items=[self_item, *sorted_children]
-                    )
-                elif self_item.type in [LayoutTypeBot.Image]:
+                if self_item.type in [LayoutTypeBot.Image]:
                     return GroupedResult.clone(
                         self_item, type=LayoutTypeBot.Group, bbox=bbox, items=[self_item, *sorted_children]
                     )
@@ -433,4 +469,8 @@ def intra_page_sorting(ordered_pages: List[List[SemanticItem]], default_method: 
         sorted_all_items = sorted_main_items + sorted_margin_items
         set_item_order(sorted_all_items)
         ordered_pages[page_id] = sorted_all_items
+    ensure_unique_item_ids(
+        [item for page in ordered_pages for item in page],
+        "intra_page_sorting final check",
+    )
     return ordered_pages

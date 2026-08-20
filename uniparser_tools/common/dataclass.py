@@ -727,6 +727,10 @@ class TextualResult(SemanticItem):
 
     @property
     def markdown(self):
+        if self.type == LayoutType.Algorithm:
+            body = "".join(self.contents) if self.contents else self.text
+            return f"```\n{body.rstrip()}\n```"
+
         plain = self._inline_text(FormatFlag.Markdown)
         if self.type in [LayoutType.Paragraph, LayoutType.Text, LayoutType.Description]:
             return plain
@@ -750,9 +754,6 @@ class TextualResult(SemanticItem):
             LayoutType.PageNote,
         ]:
             return f"*{plain}*"
-        elif self.type == LayoutType.Algorithm:
-            body = plain.rstrip("\n")
-            return f"```\n{body}\n```"
         elif self.type == LayoutType.Title:
             return f"## {plain}"
         elif self.type == LayoutType.DocumentTitle:
@@ -808,7 +809,6 @@ class TextualResult(SemanticItem):
     @property
     def html(self):
         plain = self._inline_text(FormatFlag.Html)
-        type_cls = getattr(self.type, "value", "text")
         if self.type in [LayoutType.Paragraph, LayoutType.Text, LayoutType.Description]:
             return f"<p>{plain}</p>"
         elif self.type == LayoutType.Legend:
@@ -823,20 +823,20 @@ class TextualResult(SemanticItem):
             LayoutType.AlgorithmCaption,
             LayoutType.ExpressionCaption,
         ]:
-            return f'<caption class="caption-{type_cls}">{plain}</caption>'
+            return f"<caption>{plain}</caption>"
         elif self.type in [
             LayoutType.AlgorithmFootnote,
             LayoutType.ImageFootnote,
             LayoutType.TableFootnote,
             LayoutType.PageNote,
         ]:
-            return f'<aside class="footnote footnote-{type_cls}"><em>{plain}</em></aside>'
+            return f"<aside><em>{plain}</em></aside>"
         elif self.type == LayoutType.Algorithm:
-            return f'<pre class="algorithm"><code>{plain}</code></pre>'
+            return f"<pre><code>{plain}</code></pre>"
         elif self.type == LayoutType.Title:
-            return f'<h2 class="title">{plain}</h2>'
+            return f"<h2>{plain}</h2>"
         elif self.type == LayoutType.DocumentTitle:
-            return f'<h1 class="document-title">{plain}</h1>'
+            return f"<h1>{plain}</h1>"
         else:
             return f"<p>{plain}</p>"
 
@@ -1136,7 +1136,7 @@ class TabularResult(SemanticItem):
                 f"{self.token} {self.page} {self.block} {self.type} "
                 f"convert html to {item_format} dataframe error: {repr(self.structure)}"
             )
-            return self.df
+            return pd.DataFrame()
 
     @functools.cached_property
     def df(self) -> pd.DataFrame:

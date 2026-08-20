@@ -84,10 +84,36 @@ class TestTextualResult:
         r = TextualResult(**kw, bboxes=[], contents=[], text="Chapter 1")
         assert r.markdown == "## Chapter 1"
 
-    def test_title_html_uses_h2(self) -> None:
+    def test_title_html_matches_server_tag(self) -> None:
         kw = {**ITEM_KWARGS, "type": LayoutType.Title}
         r = TextualResult(**kw, bboxes=[], contents=[], text="Chapter 1")
-        assert r.html == '<h2 class="title">Chapter 1</h2>'
+        assert r.html == "<h2>Chapter 1</h2>"
+
+    @pytest.mark.parametrize(
+        ("item_type", "expected"),
+        [
+            (LayoutType.Caption, "<caption>content</caption>"),
+            (LayoutType.PageNote, "<aside><em>content</em></aside>"),
+            (LayoutType.Algorithm, "<pre><code>content</code></pre>"),
+            (LayoutType.DocumentTitle, "<h1>content</h1>"),
+        ],
+    )
+    def test_html_tags_match_server_output(self, item_type: LayoutType, expected: str) -> None:
+        kw = {**ITEM_KWARGS, "type": item_type}
+        r = TextualResult(**kw, bboxes=[], contents=["content"], types=[LayoutType.Text])
+
+        assert r.html == expected
+
+    def test_algorithm_markdown_preserves_raw_contents(self) -> None:
+        kw = {**ITEM_KWARGS, "type": LayoutType.Algorithm}
+        r = TextualResult(
+            **kw,
+            bboxes=[],
+            contents=["print(", "x^2", ")"],
+            types=[LayoutType.Text, LayoutType.EquationInline, LayoutType.Text],
+        )
+
+        assert r.markdown == "```\nprint(x^2)\n```"
 
     def test_document_title_latex_uses_title_macro(self) -> None:
         kw = {**ITEM_KWARGS, "type": LayoutType.DocumentTitle}
@@ -150,6 +176,20 @@ class TestTabularResult:
     def test_markdown_and_latex_are_empty_for_unusable_tables(self, structure: str) -> None:
         payload = make_tabular_payload(structure=structure, placeholders=[], contents=[])
         r = TabularResult(**payload)
+
+        assert r.markdown == ""
+        assert r.latex == ""
+
+    def test_format_failure_does_not_fall_back_to_plain_dataframe(self, monkeypatch) -> None:
+        payload = make_tabular_payload(structure="<table></table>", placeholders=[], contents=[])
+        r = TabularResult(**payload)
+
+        def format_sensitive_df(item_format: FormatFlag) -> pd.DataFrame:
+            if item_format == FormatFlag.Plain:
+                return pd.DataFrame({"plain": ["content"]})
+            raise ValueError("malformed formatted table")
+
+        monkeypatch.setattr(r, "_df_for_format", format_sensitive_df)
 
         assert r.markdown == ""
         assert r.latex == ""
