@@ -73,6 +73,7 @@ class TestCliConfig:
         result = runner.invoke(cli, ["parse", str(pdf), "-o", str(out)])
         assert result.exit_code == 1
         mock_client.trigger_file.assert_called_once()
+        mock_client.trigger_url.assert_not_called()
 
     def test_fetch_without_api_key(self, runner: CliRunner, env_without_api_key: None, no_config_file: None) -> None:
         result = runner.invoke(cli, ["fetch", "--token", "abc123"])
@@ -148,8 +149,12 @@ class TestParseCommand:
         mock_client.get_formatted.return_value = {"status": "success", "content": "# Hi"}
 
         monkeypatch.setattr("uniparser_tools.cli.commands.parse.make_client", lambda ctx: (mock_client, None))
+        monkeypatch.setattr("uniparser_tools.cli.core.pipeline.time.sleep", lambda _: None)
 
         out = tmp_path / "out"
+        out.mkdir()
+        (out / "keep.txt").write_text("keep", encoding="utf-8")
+        actual_out = tmp_path / "out_1"
         result = runner.invoke(
             cli,
             ["--json", "parse", str(pdf), "-o", str(out)],
@@ -159,13 +164,21 @@ class TestParseCommand:
         assert "Parsing... paper.pdf" in result.stderr
         payload = json.loads(result.stdout)
         assert payload["token"] == "tok-parse-1"
-        assert (out / "trigger_meta.json").is_file()
-        meta = json.loads((out / "trigger_meta.json").read_text(encoding="utf-8"))
+        assert Path(payload["output_dir"]) == actual_out
+        assert (out / "keep.txt").read_text(encoding="utf-8") == "keep"
+        assert (actual_out / "trigger_meta.json").is_file()
+        meta = json.loads((actual_out / "trigger_meta.json").read_text(encoding="utf-8"))
         assert meta["token"] == "tok-parse-1"
         assert meta["trigger_kwargs"]["textual"] == "ocr-hq"
         assert meta["trigger_kwargs"]["sync"] is True
         assert "preset" not in meta
-        assert (out / "paper.md").is_file()
+        assert (actual_out / "paper.md").is_file()
+        _, trigger_kwargs = mock_client.trigger_file.call_args
+        assert trigger_kwargs["file_path"] == str(pdf.resolve())
+        assert trigger_kwargs["token"] is None
+        assert trigger_kwargs["server_generated_token"] is True
+        assert trigger_kwargs["http_timeout"] == (60.0, 1860.0)
+        mock_client.trigger_url.assert_not_called()
 
     def test_parse_default_trigger_kwargs(
         self,
@@ -189,6 +202,9 @@ class TestParseCommand:
         )
 
         _, call_kwargs = mock_client.trigger_file.call_args
+        assert call_kwargs["token"] is None
+        assert call_kwargs["server_generated_token"] is True
+        assert call_kwargs["http_timeout"] == (60.0, 1860.0)
         assert call_kwargs["sync"] is True
         assert call_kwargs["textual"] is ParseModeTextual.OCRHighQuality
         assert call_kwargs["equation"] is ParseMode.OCRHighQuality
@@ -222,6 +238,75 @@ class TestParseCommand:
         _, call_kwargs = mock_client.trigger_file.call_args
         assert call_kwargs["molecule"] is ParseMode.Disable
         assert call_kwargs["table"] is ParseMode.OCRHighQuality
+
+    def test_parse_transport_failure_does_not_recover_error_token(
+        self,
+        runner: CliRunner,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+    ) -> None:
+        monkeypatch.setenv("UNIPARSER_API_KEY", "test-key")
+        pdf = tmp_path / "paper.pdf"
+        pdf.write_bytes(b"%PDF-1.4")
+        mock_client = MagicMock()
+        mock_client.trigger_file.return_value = {
+            "status": "error",
+            "token": "diagnostic-token",
+            "description": "The write operation timed out",
+            "error_type": "WriteTimeout",
+        }
+        monkeypatch.setattr("uniparser_tools.cli.commands.parse.make_client", lambda ctx: (mock_client, None))
+
+        out = tmp_path / "out"
+        result = runner.invoke(
+            cli,
+            ["--json", "parse", str(pdf), "-o", str(out)],
+            env={**os.environ, "UNIPARSER_API_KEY": "test-key"},
+        )
+
+        assert result.exit_code == 1
+        payload = json.loads(result.stderr.strip().splitlines()[-1])
+        assert payload["error"]["code"] == "UPLOAD_ERROR"
+        assert payload["error"]["stage"] == "trigger_file"
+        assert payload["token"] == "diagnostic-token"
+        assert not (out / "trigger_meta.json").exists()
+        saved_error = json.loads((out / "trigger_error.json").read_text(encoding="utf-8"))
+        assert saved_error["error_type"] == "WriteTimeout"
+        assert saved_error["token"] == "diagnostic-token"
+        mock_client.get_result.assert_not_called()
+
+    def test_parse_direct_upload_failure_uses_upload_error(
+        self,
+        runner: CliRunner,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+    ) -> None:
+        monkeypatch.setenv("UNIPARSER_API_KEY", "test-key")
+        pdf = tmp_path / "paper.pdf"
+        pdf.write_bytes(b"%PDF-1.4")
+        mock_client = MagicMock()
+        mock_client.trigger_file.return_value = {
+            "status": "error",
+            "description": "Direct upload failed",
+            "error_type": "ConnectTimeout",
+        }
+        monkeypatch.setattr("uniparser_tools.cli.commands.parse.make_client", lambda ctx: (mock_client, None))
+
+        result = runner.invoke(
+            cli,
+            ["--json", "parse", str(pdf), "-o", str(tmp_path / "out")],
+            env={**os.environ, "UNIPARSER_API_KEY": "test-key"},
+        )
+
+        assert result.exit_code == 1
+        payload = json.loads(result.stderr.strip().splitlines()[-1])
+        assert payload["error"]["code"] == "UPLOAD_ERROR"
+        assert payload["error"]["stage"] == "trigger_file"
+        mock_client.trigger_url.assert_not_called()
+        _, direct_kwargs = mock_client.trigger_file.call_args
+        assert direct_kwargs["token"] is None
+        assert direct_kwargs["server_generated_token"] is True
+        assert direct_kwargs["http_timeout"] == (60.0, 1860.0)
 
     def test_parse_invalid_equation_mode_rejected(
         self,
@@ -261,6 +346,9 @@ class TestFetchCommand:
         monkeypatch.setattr("uniparser_tools.cli.commands.fetch.make_client", lambda ctx: (mock_client, None))
 
         out = tmp_path / "fetch-out"
+        out.mkdir()
+        (out / "keep.txt").write_text("keep", encoding="utf-8")
+        actual_out = tmp_path / "fetch-out_1"
         result = runner.invoke(
             cli,
             ["--json", "fetch", "--token", "abcdef123456", "-o", str(out)],
@@ -271,7 +359,9 @@ class TestFetchCommand:
         payload = json.loads(result.stdout)
         assert payload["token"] == "abcdef123456"
         assert payload["fetched_by_token"] is True
-        assert (out / "token_abcdef12.md").is_file()
+        assert Path(payload["output_dir"]) == actual_out
+        assert (out / "keep.txt").read_text(encoding="utf-8") == "keep"
+        assert (actual_out / "token_abcdef12.md").is_file()
 
 
 class TestHealthVersion:
@@ -329,15 +419,18 @@ class TestHelp:
         result = runner.invoke(cli, ["parse", "--help"])
         assert result.exit_code == 0
         assert "--output-dir" in result.stdout
+        assert "--upload-mode" not in result.stdout
         assert "--async" in result.stdout
         assert "--textual" in result.stdout
         assert "--molecule" in result.stdout
+        assert "--overwrite" not in result.stdout
         assert "--verbose" not in result.stdout
 
     def test_fetch_help(self, runner: CliRunner) -> None:
         result = runner.invoke(cli, ["fetch", "--help"])
         assert result.exit_code == 0
         assert "--token" in result.stdout
+        assert "--overwrite" not in result.stdout
 
 
 class TestAuthCommand:

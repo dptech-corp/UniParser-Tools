@@ -55,7 +55,7 @@ All API methods return a dict with consistent structure:
     ...
 }
 
-# Error
+# SDK error
 {
     "status": "error",
     "token": "abc123...",
@@ -63,6 +63,11 @@ All API methods return a dict with consistent structure:
     "description": "Detailed traceback (optional)"
 }
 ```
+
+The low-level SDK retains its deterministic-token behavior for backward compatibility and may include that local value
+in an error response. This is not part of the Agent Skill workflow. CLI and MCP always send `token=None` with
+`server_generated_token=True` and only persist the `token` from a successful trigger response; never use an SDK error
+token with CLI `fetch`.
 
 ## Common Error Messages
 

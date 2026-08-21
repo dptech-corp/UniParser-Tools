@@ -53,3 +53,19 @@ def test_customer_docs_include_result_retention_notice() -> None:
     assert "24 小时" in readme
     assert "retained for only 24 hours" in skill
     assert "retained for only **24 hours**" in notes
+
+
+def test_skill_only_uses_tokens_from_successful_triggers() -> None:
+    skill = (REPO_ROOT / "skills" / "UniParser-Tools" / "SKILL.md").read_text(encoding="utf-8")
+    notes = (REPO_ROOT / "skills" / "UniParser-Tools" / "references" / "notes.md").read_text(encoding="utf-8")
+
+    assert "Never use a token from a failed trigger" in skill
+    assert "Save `token` only from success JSON or `trigger_meta.json`" in skill
+    assert "candidate_token" not in skill
+    assert "recoverable_token" not in skill
+    assert "the `token` field in a failed parse stderr JSON" not in skill
+    assert "--upload-mode" not in skill
+    assert "TOS" not in skill
+    assert "only persist the `token` from a successful trigger response" in notes
+    assert "candidate_token" not in notes
+    assert "recoverable_token" not in notes

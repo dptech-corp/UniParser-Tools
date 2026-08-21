@@ -1,77 +1,54 @@
 # UniParser MCP Server
 
-基于 [Model Context Protocol](https://modelcontextprotocol.io/) 的 **stdio** 服务，通过 MCP `tools` 调用 UniParser 用户面 HTTP API。不在 MCP 进程内加载解析栈，仅做 HTTP 转发，并与 [`config.yaml`](./config.yaml) 中的默认参数合并。
+基于 [Model Context Protocol](https://modelcontextprotocol.io/) 的 MCP 服务，通过单一工具 `uniparser_parse` 调用 [UniParser](https://uniparser.dp.tech/) API（经 `uniparser-tools` 的 `UniParserClient`）。
 
-## 前置条件
-
-1. **已运行 UniParser 用户服务**（提供 `GET /health`、`POST /trigger-file-async`、`POST /trigger-url-async`、`POST /get-formatted` 等）。若在 UniParser 主仓库中开发，典型启动方式为（路径以主仓库为准）：
-
-   ```bash
-   python services/server_user.py
-   ```
-
-   默认监听 **40001** 端口；本地联调时请将 `UNIPARSER_BASE_URL` 设为 `http://127.0.0.1:40001`。
-
-2. **Python 3.10+**，推荐使用 [uv](https://github.com/astral-sh/uv) 在 **本目录**（`src/mcp_server`）安装依赖，避免与主项目其它依赖版本冲突：
-
-   ```bash
-   cd mcp_server
-   uv sync
-   ```
-
-## 环境变量
-
-MCP 进程通过 [`UniParserClient`](../uniparser_tools/api/clients.py) 访问服务，**以下两项在运行 MCP 时均为必填**（未设置时工具会返回明确错误，而非静默使用默认 URL）：
-
-| 变量 | 说明 |
-|------|------|
-| `UNIPARSER_BASE_URL` | 用户服务根 URL，**无代码内默认值**。本地示例：`http://127.0.0.1:40001` |
-| `UNIPARSER_API_KEY` | 对应请求头 `X-API-Key`；与服务端鉴权配置一致 |
-
-密钥仅通过环境变量注入，勿写入 MCP 工具参数或提交到版本库。
-
-**集成测试**（`pytest` 标记 `integration`）还会读取：
-
-| 变量 | 说明 |
-|------|------|
-| `UNIPARSER_BASE_URL` | 未设置时，[`tests/conftest.py`](./tests/conftest.py) 默认使用 `https://uniparser.dp.tech`（与 MCP 手动配置本地 URL 的行为不同，请注意） |
-| `UNIPARSER_API_KEY` | 未设置时跳过全部集成测试 |
-| `UNIPARSER_INTEGRATION` | 设为 `0` / `false` / `no` / `skip` 时，不探测服务并跳过集成测试（适用于 CI 无后端场景） |
-
-## 配置文件 `config.yaml`
-
-与 `uniparser_mcp` 包同级目录下的 [`config.yaml`](./config.yaml) 控制 **trigger** 与 **get-formatted** 的默认字段（与 HTTP API 一致）：
-
-| 段名 | 用途 |
-|------|------|
-| `default_trigger_file` | `uniparser_parse_file` → `POST /trigger-file-async` 的默认参数（如 `lang`、`sync`、`textual`、`table` 及各模态解析档位） |
-| `default_trigger_url` | `uniparser_parse_url` → `POST /trigger-url-async` 的默认参数 |
-| `default_get_result` | 解析完成后 `POST /get-formatted` 的默认参数（如各类型输出为 `markdown`、`content: true` 等） |
-
-修改解析行为时，优先编辑该文件；若需在工具层暴露更多 MCP 参数，需扩展 [`uniparser_mcp/server.py`](./uniparser_mcp/server.py)。
-
-## Tools
+## Tool
 
 | Tool | 说明 |
 |------|------|
-| `uniparser_health` | `GET /health`，返回服务健康状态字符串 |
-| `uniparser_version` | `GET /version`，返回版本信息 |
-| `uniparser_parse_file` | 参数：本机 PDF **绝对路径**。流程：`POST /trigger-file-async` → 成功后再 `POST /get-formatted`，返回合并后的 `content` 文本 |
-| `uniparser_parse_url` | 参数：公网可访问的 PDF **URL**。流程：`POST /trigger-url-async` → `POST /get-formatted`，返回 `content` |
+| `uniparser_parse` | 解析本地 PDF、本地图片或公网 PDF URL；落盘 Markdown + `pages_tree.json`；返回路径与 `content_preview` |
 
-`uniparser_parse_file` 仅适合**同机**或**体积较小**的 PDF；大文件或带宽受限时，建议将文件放到公网可访问地址后使用 `uniparser_parse_url`。
+### `uniparser_parse` 参数
 
-## 本地运行
+提供 **三选一** 输入：`file_path`、`image_path`、`pdf_url`。
+
+| 参数 | 说明 |
+|------|------|
+| `output_dir` | 可选的首选目录；默认 `~/Uni-Parser-Skill/<stem>/`；已存在时自动使用同级 `<name>_1`、`<name>_2` 等新目录 |
+| `async_mode` | `sync=false` 提交后轮询直至完成 |
+| `textual` … `molecule` | 7 个语义字段，默认 scientific-paper preset |
+
+成功返回 JSON（Pydantic）：`markdown_path`、`pages_tree_path`、`content_preview`（默认 2000 字）、`message` 等。
+调用方应以返回的 `output_dir` 为准；服务不会复用或删除已有目录。
+
+本地 PDF 固定通过 `trigger_file` 直接 multipart 上传，不使用 TOS 或自动回退。MCP 触发时固定发送
+`token=None` 和 `server_generated_token=True`；同步请求使用 `(60, 1860)`，异步请求使用 `(60, 60)`，
+只有服务端确认的 token 才能进入结果轮询。
+
+> 出于安全原因，根目录、HOME、当前工作目录及 Git 元数据目录不能作为首选输出目录。
+
+健康检查、版本查询、按 token 手动恢复请使用 CLI：`uniparser health`、`uniparser version`、`uniparser fetch`。
+
+失败返回的 `error.code` 可能为 `CONFIG_ERROR`、`INPUT_ERROR`、`UPLOAD_ERROR`、`PARSE_ERROR` 或
+`TOKEN_NOT_FOUND`。触发失败时可能保留标准 `token` 供诊断，但 MCP 不会使用它或进入恢复流程；只有
+成功触发返回的 token 才会被轮询。`undefined` 最多检查三次，不会持续等待 1800 秒。
+
+## 环境变量
+
+| 变量 | 说明 | 默认 |
+|------|------|------|
+| `UNIPARSER_API_KEY` | 必填，`X-API-Key` | — |
+| `UNIPARSER_BASE_URL` | API 根 URL | `https://uniparser.dp.tech` |
+| `OUTPUT_DIR` | 输出根目录 | `~/Uni-Parser-Skill` |
+| `UNIPARSER_PREVIEW_CHARS` | `content_preview` 长度 | `2000` |
+| `UNIPARSER_MCP_TRANSPORT` | `stdio` / `sse` / `streamable-http` | `stdio` |
+
+## 安装与运行
 
 ```bash
 cd mcp_server
+uv sync
 uv run python -m uniparser_mcp
-```
-
-或：
-
-```bash
-uv run uniparser-mcp
 ```
 
 ## 测试
@@ -82,25 +59,12 @@ uv sync --extra dev
 uv run pytest tests/ -v
 ```
 
-调试时要看 `print` 或中间步骤输出，可关闭输出捕获：
+## Cursor / Claude Code 接入示例
 
-```bash
-uv run pytest tests/ -v -s
-# 或
-uv run pytest tests/ -v --capture=no
-```
+先克隆本仓库并在本目录执行 `uv sync`，再在 MCP 配置中增加如下内容。**必须**将两处占位符改成你的本机值，否则 MCP 无法启动：
 
-需要把 **logging** 打到终端时：
-
-```bash
-uv run pytest tests/ -v -s -o log_cli=true -o log_cli_level=DEBUG
-```
-
-- **集成测试**：[`tests/test_client_integration.py`](./tests/test_client_integration.py)（标记 `integration`）。会话开始时用 `httpx` 请求 `{UNIPARSER_BASE_URL}/health`；不可达或非正常状态则**整会话 skip**。仅跑集成：`uv run pytest tests/test_client_integration.py -v`。CI 无服务：`UNIPARSER_INTEGRATION=0 uv run pytest tests/ -v`。
-
-## Cursor / Claude 等 MCP 接入示例
-
-在 MCP 配置中增加（将 `/path/to/UniParser-Tools/src/mcp_server` 换为你的本机路径）：
+1. `"--directory"` 后的路径：把 `/path/to/UniParser-Tools/mcp_server` 替换为克隆到本机后的 `mcp_server` **绝对路径**（例如 macOS：`/Users/<you>/UniParser-Tools/mcp_server`）。
+2. `UNIPARSER_API_KEY`：把 `your-api-key` 替换为你在 [https://uniparser.dp.tech/](https://uniparser.dp.tech/) 申请的真实 API Key。
 
 ```json
 {
@@ -110,13 +74,12 @@ uv run pytest tests/ -v -s -o log_cli=true -o log_cli_level=DEBUG
       "args": [
         "run",
         "--directory",
-        "/path/to/UniParser-Tools/src/mcp_server",
+        "/path/to/UniParser-Tools/mcp_server",
         "python",
         "-m",
         "uniparser_mcp"
       ],
       "env": {
-        "UNIPARSER_BASE_URL": "http://127.0.0.1:40001",
         "UNIPARSER_API_KEY": "your-api-key"
       }
     }
@@ -124,17 +87,7 @@ uv run pytest tests/ -v -s -o log_cli=true -o log_cli_level=DEBUG
 }
 ```
 
-`UNIPARSER_BASE_URL`、`UNIPARSER_API_KEY` 均需在 `env` 中配置（示例仅作占位）。
+`UNIPARSER_BASE_URL` 可省略（默认云服务）；本地自托管时设置为 `http://127.0.0.1:40001` 等。
 
-## 故障排查
-
-| 现象 | 可能原因 |
-|------|----------|
-| 工具返回「未设置 UNIPARSER_BASE_URL」或「未设置 UNIPARSER_API_KEY」 | MCP 的 `env` 未注入或拼写错误 |
-| `uniparser_health` 失败 | 用户服务未启动、端口/防火墙不一致、或 `UNIPARSER_BASE_URL` 与真实监听地址不符 |
-| `uniparser_parse_file` 失败 | 路径不存在、无读权限，或服务端无法访问该路径（远程部署时常见） |
-| `uniparser_parse_url` 长时间无结果 | PDF 较大或 URL 较慢；可通过 `UniParserClient` 的 `request_timeout` / `sync_request_timeout` 区分普通请求与同步解析请求超时 |
-
-## 与主仓库的关系
-
-本目录为**独立**子项目（自有 [`pyproject.toml`](./pyproject.toml)），通过 `[tool.uv.sources]` 以可编辑方式依赖上一级 [`uniparser_tools`](../)。主仓库根 `pyproject.toml` 中若有可选依赖组 `mcp-server`，仅作文档引用；**推荐**始终在 `src/mcp_server/` 下执行 `uv sync`，以保证 MCP 与主服务依赖隔离。
+本地 PDF 同步直传显式使用 `(60, 1860)`，异步直传显式使用 `(60, 60)`；轮询和结果获取使用
+`UniParserClient.request_timeout`。这些都是客户端 HTTP 超时，与服务端解析预算相互独立。

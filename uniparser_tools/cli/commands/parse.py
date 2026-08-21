@@ -21,8 +21,11 @@ def _parse_mode_option(name: str, help_text: str):
 
 @click.command("parse")
 @click.argument("source", metavar="INPUT")
-@click.option("--output-dir", "-o", help="Output directory (default: ~/Uni-Parser-Skill/<stem>/)")
-@click.option("--overwrite", is_flag=True, help="Overwrite output directory if it already exists")
+@click.option(
+    "--output-dir",
+    "-o",
+    help="Preferred output directory; an available suffixed sibling is used if it exists",
+)
 @click.option("--async", "async_mode", is_flag=True, help="Submit with sync=false and poll until success")
 @click.option(
     "--textual",
@@ -41,7 +44,6 @@ def parse_cmd(
     ctx: click.Context,
     source: str,
     output_dir: str | None,
-    overwrite: bool,
     async_mode: bool,
     textual: str | None,
     equation: str | None,
@@ -60,9 +62,10 @@ def parse_cmd(
     if err is not None:
         raise SystemExit(err)
 
-    out_dir, dir_code = resolve_output_dir(resolved.source_stem, output_dir, overwrite=overwrite)
-    if dir_code is not None:
-        raise SystemExit(dir_code)
+    try:
+        out_dir = resolve_output_dir(resolved.source_stem, output_dir)
+    except (OSError, ValueError) as exc:
+        raise SystemExit(input_error(str(exc))) from exc
 
     trigger_kwargs = resolve_trigger_kwargs(
         sync=not async_mode,

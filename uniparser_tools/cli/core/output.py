@@ -1,17 +1,17 @@
 from __future__ import annotations
 
 import json
-import shutil
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from uniparser_tools.cli.core.errors import dir_exists_error
+from uniparser_tools.common.output_dir import create_unique_output_dir
 
 
 def default_output_dir(source_stem: str) -> Path:
-    return (Path.home() / "Uni-Parser-Skill" / source_stem).expanduser().resolve()
+    root = (Path.home() / "Uni-Parser-Skill").expanduser().resolve()
+    return root / source_stem
 
 
 def fetch_source_stem(token: str) -> str:
@@ -19,36 +19,24 @@ def fetch_source_stem(token: str) -> str:
 
 
 def default_fetch_output_dir(token: str) -> Path:
-    return (Path.home() / "Uni-Parser-Skill" / fetch_source_stem(token)).expanduser().resolve()
-
-
-def _ensure_output_dir(out: Path, *, overwrite: bool) -> tuple[Path | None, int | None]:
-    if out.exists() and not overwrite:
-        return None, dir_exists_error(out)
-    if out.exists() and overwrite:
-        shutil.rmtree(out)
-    return out, None
+    root = (Path.home() / "Uni-Parser-Skill").expanduser().resolve()
+    return root / fetch_source_stem(token)
 
 
 def resolve_output_dir(
     source_stem: str,
     output_dir: str | None,
-    *,
-    overwrite: bool,
-) -> tuple[Path | None, int | None]:
-    out = Path(output_dir).expanduser().resolve() if output_dir else default_output_dir(source_stem)
-    return _ensure_output_dir(out, overwrite=overwrite)
+) -> Path:
+    preferred = Path(output_dir).expanduser() if output_dir else default_output_dir(source_stem)
+    return create_unique_output_dir(preferred)
 
 
 def resolve_fetch_output_dir(
     token: str,
     output_dir: str | None,
-    *,
-    overwrite: bool,
-) -> tuple[Path | None, int | None]:
-    if output_dir:
-        return resolve_output_dir(fetch_source_stem(token), output_dir, overwrite=overwrite)
-    return _ensure_output_dir(default_fetch_output_dir(token), overwrite=overwrite)
+) -> Path:
+    preferred = Path(output_dir).expanduser() if output_dir else default_fetch_output_dir(token)
+    return create_unique_output_dir(preferred)
 
 
 def write_trigger_meta(

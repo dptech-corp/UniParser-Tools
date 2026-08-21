@@ -1,3 +1,3 @@
-"""UniParser MCP Server — stdio tools over the UniParser HTTP API."""
+"""UniParser MCP server — parse-only tool over UniParser API."""
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"

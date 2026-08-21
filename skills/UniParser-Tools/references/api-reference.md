@@ -89,6 +89,9 @@ trigger endpoints, including `trigger_url`.
 
 ### TOS presigned upload
 
+This is an advanced SDK-only path. The CLI and MCP local-PDF workflows use direct `trigger_file` uploads and do not
+call TOS or perform automatic upload fallback.
+
 ```python
 uploaded = parser.upload_files_to_tos(["./document.pdf"])
 source_url = uploaded["files"][0]["source_url"]

@@ -5,6 +5,7 @@
 *.vscode
 *.txt
 *.__pycache__
+.venv/
 
 # compilation and distribution
 __pycache__
@@ -67,6 +68,9 @@ deploy
 
 # env
 .env
+
+# uv project lock files (generated locally; CI installs with pip)
+uv.lock
 
 *.bak
 .cursor/

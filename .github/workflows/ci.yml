@@ -26,12 +26,16 @@ jobs:
           cache-dependency-path: |
             requirements.txt
             pyproject.toml
+            mcp_server/pyproject.toml
+            uniparser_agent/pyproject.toml
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install -e ".[test]"
+          pip install -e "./mcp_server[dev]"
+          pip install -e "./uniparser_agent[dev]"
 
       - name: Ruff lint
         run: ruff check .
@@ -41,3 +45,9 @@ jobs:
 
       - name: Unit tests
         run: pytest tests/unit/ -v -m "not live"
+
+      - name: MCP tests
+        run: pytest mcp_server/tests/ -v
+
+      - name: Agent tests
+        run: pytest uniparser_agent/tests/ -v

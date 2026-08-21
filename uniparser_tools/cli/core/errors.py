@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import sys
-from pathlib import Path
 
 
 def emit_json_stderr(payload: dict) -> None:
@@ -32,32 +31,38 @@ def missing_token_error() -> int:
     return 1
 
 
-def dir_exists_error(output_dir: Path) -> int:
-    emit_json_stderr(
-        {
-            "ok": False,
-            "error": {
-                "code": "DIR_EXISTS",
-                "message": (
-                    f"Output directory already exists: {output_dir}. Re-run with --overwrite if you want to replace it."
-                ),
-                "output_dir": str(output_dir),
-            },
-        }
-    )
+def _operation_error(code: str, stage: str, result: dict) -> int:
+    payload = {
+        "ok": False,
+        "token": result.get("token"),
+        "error": {
+            "code": code,
+            "message": result.get("description") or result.get("message") or str(result),
+            "stage": stage,
+        },
+    }
+    emit_json_stderr(payload)
     return 1
 
 
 def parse_error(stage: str, result: dict) -> int:
+    return _operation_error("PARSE_ERROR", stage, result)
+
+
+def upload_error(stage: str, result: dict) -> int:
+    return _operation_error("UPLOAD_ERROR", stage, result)
+
+
+def token_not_found_error(token: str, *, attempts: int) -> int:
     emit_json_stderr(
         {
             "ok": False,
+            "token": token,
             "error": {
-                "code": "PARSE_ERROR",
-                "message": result.get("description") or result.get("message") or str(result),
-                "stage": stage,
+                "code": "TOKEN_NOT_FOUND",
+                "message": f"The service did not recognize this token after {attempts} checks.",
+                "stage": "get_result_poll",
             },
-            "token": result.get("token"),
         }
     )
     return 1

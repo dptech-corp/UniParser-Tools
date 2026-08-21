@@ -5,8 +5,15 @@ import time
 from pathlib import Path
 from typing import Any
 
-from uniparser_tools.cli.core.defaults import PENDING_STATUSES, POLL_INTERVAL_SEC, POLL_TIMEOUT_SEC
-from uniparser_tools.cli.core.errors import parse_error
+from uniparser_tools.cli.core.defaults import (
+    DIRECT_SYNC_UPLOAD_REQUEST_TIMEOUT,
+    DIRECT_UPLOAD_REQUEST_TIMEOUT,
+    PENDING_STATUSES,
+    POLL_INTERVAL_SEC,
+    POLL_TIMEOUT_SEC,
+    UNDEFINED_MAX_POLLS,
+)
+from uniparser_tools.cli.core.errors import parse_error, token_not_found_error, upload_error
 from uniparser_tools.cli.core.input import InputKind, ResolvedInput, display_label_for_input
 from uniparser_tools.cli.core.output import print_parsing_status, save_parse_results, write_trigger_meta
 from uniparser_tools.cli.core.parse_options import resolve_trigger_kwargs, serialize_trigger_kwargs
@@ -16,23 +23,52 @@ def scientific_paper_trigger_kwargs(*, sync: bool = True) -> dict:
     return resolve_trigger_kwargs(sync=sync, overrides={})
 
 
-def trigger_input(client, resolved: ResolvedInput, *, trigger_kwargs: dict) -> tuple[dict, str]:
+def trigger_input(
+    client,
+    resolved: ResolvedInput,
+    *,
+    trigger_kwargs: dict,
+) -> tuple[dict, str]:
     kwargs = trigger_kwargs
     if resolved.kind is InputKind.FILE:
-        trigger = client.trigger_file(file_path=str(resolved.path), **kwargs)
+        trigger = client.trigger_file(
+            file_path=str(resolved.path),
+            token=None,
+            server_generated_token=True,
+            http_timeout=(
+                DIRECT_SYNC_UPLOAD_REQUEST_TIMEOUT if kwargs.get("sync", True) else DIRECT_UPLOAD_REQUEST_TIMEOUT
+            ),
+            **kwargs,
+        )
+        if not isinstance(trigger, dict):
+            trigger = {
+                "status": "error",
+                "message": "Direct upload returned an invalid response",
+            }
         return trigger, "trigger_file"
     if resolved.kind is InputKind.IMAGE:
-        trigger = client.trigger_snip(snip_path=str(resolved.path), **kwargs)
+        trigger = client.trigger_snip(
+            snip_path=str(resolved.path),
+            token=None,
+            server_generated_token=True,
+            **kwargs,
+        )
         return trigger, "trigger_snip"
-    trigger = client.trigger_url(pdf_url=resolved.raw, **kwargs)
+    trigger = client.trigger_url(
+        pdf_url=resolved.raw,
+        token=None,
+        server_generated_token=True,
+        **kwargs,
+    )
     return trigger, "trigger_url"
 
 
 def poll_until_success(client, token: str) -> dict | int:
-    deadline = time.time() + POLL_TIMEOUT_SEC
+    deadline = time.monotonic() + POLL_TIMEOUT_SEC
     last: dict[str, Any] = {}
+    undefined_polls = 0
 
-    while time.time() < deadline:
+    while time.monotonic() < deadline:
         last = client.get_result(
             token,
             content=False,
@@ -45,7 +81,14 @@ def poll_until_success(client, token: str) -> dict | int:
             return last
         if status == "error":
             return parse_error("get_result_poll", last)
-        if status in PENDING_STATUSES or status is None:
+        if status == "undefined":
+            undefined_polls += 1
+            if undefined_polls >= UNDEFINED_MAX_POLLS:
+                return token_not_found_error(token, attempts=undefined_polls)
+            time.sleep(POLL_INTERVAL_SEC)
+            continue
+        if status in PENDING_STATUSES:
+            undefined_polls = 0
             time.sleep(POLL_INTERVAL_SEC)
             continue
         return parse_error("get_result_poll", last)
@@ -124,6 +167,8 @@ def run_parse(
     trigger, stage = trigger_input(client, resolved, trigger_kwargs=trigger_kwargs)
     if trigger.get("status") != "success":
         save_stage_error(out_dir, "trigger_error.json", trigger)
+        if stage == "trigger_file" and trigger.get("error_type"):
+            return upload_error(stage, trigger)
         return parse_error(stage, trigger)
 
     token = trigger.get("token")

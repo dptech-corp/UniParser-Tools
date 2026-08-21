@@ -1,13 +1,12 @@
 [project]
 name = "uniparser-mcp"
-version = "0.1.0"
-description = "MCP server exposing UniParser HTTP API (stdio)"
+version = "0.2.0"
+description = "MCP server exposing UniParser parse via uniparser-tools"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = [
-    "mcp>=1.10.0",
-    "httpx>=0.27.0",
-    "pyyaml>=6.0",
+    "mcp>=1.10.0,<2",
+    "pydantic>=2.0",
     "uniparser-tools",
 ]
 
@@ -28,12 +27,6 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["uniparser_mcp"]
-# 将仓库根目录的 config.yaml 打进 wheel 的 uniparser_mcp/，供已安装包加载默认参数
-[tool.hatch.build.targets.wheel.force-include]
-"config.yaml" = "uniparser_mcp/config.yaml"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-markers = [
-    "integration: 需要可访问的 UniParser HTTP 服务（默认探测失败则 skip，可用 UNIPARSER_INTEGRATION=0 关闭）",
-]
